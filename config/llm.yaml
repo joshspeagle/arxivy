@@ -1,0 +1,106 @@
+# LLM Provider Configuration
+# Define different models with aliases for easy switching across workflow steps
+
+# OpenAI
+gpt-41:
+  provider: "openai"
+  model: "gpt-4.1"
+  api_key_env: "OPENAI_API_KEY"
+  temperature: 0.1
+  max_tokens: 1000
+  reasoning: false
+  description: "GPT-4.1 - Latest OpenAI model, excellent for coding"
+
+gpt-41-mini:
+  provider: "openai"
+  model: "gpt-4.1-mini"
+  api_key_env: "OPENAI_API_KEY"
+  temperature: 0.1
+  max_tokens: 1000
+  reasoning: false
+  description: "GPT-4.1 Mini - Fast and cost-effective"
+  
+gpt-4o:
+  provider: "openai"
+  model: "gpt-4o"
+  api_key_env: "OPENAI_API_KEY"
+  temperature: 0.1
+  max_tokens: 1000
+  reasoning: false
+  description: "GPT-4o - Multimodal model"
+
+gpt-o3:
+  provider: "openai"
+  model: "o3"
+  api_key_env: "OPENAI_API_KEY"
+  temperature: 0.1
+  max_tokens: 2000
+  reasoning: true
+  description: "o3 - Advanced reasoning model"
+  
+gpt-o4-mini:
+  provider: "openai"
+  model: "o4-mini"
+  api_key_env: "OPENAI_API_KEY"
+  temperature: 0.1
+  max_tokens: 1000
+  reasoning: true
+  description: "o4-mini - Fast reasoning model"
+
+# Anthropic
+claude-opus-4:
+  provider: "anthropic"
+  model: "claude-4-opus"
+  api_key_env: "ANTHROPIC_API_KEY"
+  temperature: 0.1
+  max_tokens: 2000
+  reasoning: true
+  description: "Claude Opus 4 - Most powerful, best for coding"
+  
+claude-sonnet-4:
+  provider: "anthropic"
+  model: "claude-4-sonnet"
+  api_key_env: "ANTHROPIC_API_KEY"
+  temperature: 0.1
+  max_tokens: 1000
+  reasoning: true
+  description: "Claude Sonnet 4 - Balanced performance and cost"
+
+claude-35-haiku:
+  provider: "anthropic"
+  model: "claude-35-haiku"
+  api_key_env: "ANTHROPIC_API_KEY"
+  temperature: 0.1
+  max_tokens: 1000
+  reasoning: false
+  description: "Claude Haiku 3.5 - Fast and cost-effective"
+
+# Google
+gemini-25-pro:
+  provider: "google"
+  model: "gemini-2.5-pro"
+  api_key_env: "GOOGLE_API_KEY"
+  temperature: 0.1
+  max_tokens: 1000
+  reasoning: true
+  description: "Gemini 2.5 Pro - Advanced reasoning with thinking"
+  
+gemini-25-flash:
+  provider: "google"
+  model: "gemini-2.5-flash"
+  api_key_env: "GOOGLE_API_KEY"
+  temperature: 0.1
+  max_tokens: 1000
+  reasoning: true
+  description: "Gemini 2.5 Flash - Fast and efficient"
+  
+gemini-25-flash-lite:
+  provider: "google"
+  model: "gemini-2.5-flash-lite"
+  api_key_env: "GOOGLE_API_KEY"
+  temperature: 0.1
+  max_tokens: 1000
+  reasoning: true
+  description: "Gemini 2.5 Flash Lite - Most cost-effective"
+
+# Local Models

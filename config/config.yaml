@@ -1,0 +1,50 @@
+# ArXiv Digest Configuration
+
+# Paper Fetching Settings
+arxiv:
+  # Categories can be found at https://arxiv.org/category_taxonomy
+  categories:
+
+  # Compute Science Categories
+    - "cs.AI"             # Artificial Intelligence
+    - "cs.CL"             # Computation and Language
+    - "cs.CV"             # Computer Vision
+    - "cs.LG"             # Machine Learning
+    - "cs.GL"             # General Computer Science
+    - "cs.HC"             # Human-Computer Interaction
+    - "cs.MA"             # Multiagent Systems
+    - "cs.NE"             # Neural and Evolutionary Computing
+
+  # Statistics Categories
+    - "stat.AP"           # Applications (Statistics)
+    - "stat.CO"           # Computation (Statistics)
+    - "stat.ME"           # Methodology (Statistics)
+    - "stat.ML"           # Machine Learning (Statistics)
+    - "stat.OT"           # Other (Statistics)
+    - "stat.TH"           # Theory (Statistics)
+
+  # Physics Categories
+    - "astro-ph.CO"       # Cosmology and Nongalactic Astrophysics
+    - "astro-ph.EP"       # Earth and Planetary Astrophysics
+    - "astro-ph.GA"       # General Astrophysics
+    - "astro-ph.HE"       # High Energy Astrophysical Phenomena
+    - "astro-ph.IM"       # Instrumentation and Methods for Astrophysics
+    - "astro-ph.SR"       # Solar and Stellar Astrophysics
+    - "cond-mat.dis-nn"   # Statistical Mechanics (Condensed Matter)
+    - "physics.data-an"   # Data Analysis, Statistics and Probability (Physics)
+    - "physics.ed-ph"     # Education (Physics)
+    - "physics.gen-ph"    # General Physics
+    - "physics.geo-ph"    # Geophysics
+    - "physics.space-ph"  # Space Physics
+  
+  days_back: 1  # Days to look back for recent papers
+  arxiv_days_only: true  # If true, automatically shift search window if no papers found
+  max_papers_per_category: 200  # Maximum papers to fetch per category
+  filter_legacy_categories: true  # Remove legacy categories from papers
+  require_modern_categories: true  # Exclude papers with only legacy categories
+  request_delay: 1.0  # Rate limiting between API calls
+
+# Output Settings
+output:
+  format: "json"  # Options: json, csv, both
+  base_dir: "./data"  # Base directory for output files

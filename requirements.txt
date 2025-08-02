@@ -1,0 +1,16 @@
+# Core dependencies
+feedparser>=6.0.10
+requests>=2.28.0
+PyYAML>=6.0
+
+# LLM APIs (for scoring/summarization steps)
+openai>=1.0.0
+anthropic>=0.25.0
+google-generativeai>=0.8.0
+
+# Data processing
+pandas>=1.5.0
+numpy>=1.24.0
+
+# Development
+python-dotenv>=1.0.0
