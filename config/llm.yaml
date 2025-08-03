@@ -1,6 +1,8 @@
 # LLM Provider Configuration
 # Define different models with aliases for easy switching across workflow steps
 
+# External Models
+
 # OpenAI
 gpt-41:
   provider: "openai"
@@ -104,3 +106,46 @@ gemini-25-flash-lite:
   description: "Gemini 2.5 Flash Lite - Most cost-effective"
 
 # Local Models
+
+# Ollama
+# llama31:
+#   provider: "ollama-meta"
+#   model: "llama3.1:8b"
+#   base_url: "http://localhost:11434"
+#   temperature: 0.1
+#   max_tokens: 1000
+#   reasoning: false
+#   description: "Llama 3.1 8B - Fast and efficient for local use"
+
+# LM Studio
+# gemma-3:
+#   provider: "lmstudio-google"
+#   model: "gemma-3-12b"
+#   base_url: "http://localhost:1234/v1"
+#   temperature: 0.1
+#   max_tokens: 1000
+#   reasoning: false
+#   description: "Gemma 3 12B - Fast and efficient for local use"
+
+# Custom Local API (Ollama or OpenAI format)
+# custom-openai:
+#   provider: "local-company"
+#   model: "your-model-name"
+#   base_url: "http://your-server:port/v1"
+#   api_format: "openai"
+#   api_key: "optional-if-needed"
+#   temperature: 0.1
+#   max_tokens: 1000
+#   reasoning: false
+#   description: "Custom Model - Fast and efficient for local use"
+
+# custom-ollama:
+#   provider: "local-company"
+#   model: "your-model-name"
+#   base_url: "http://your-server:port"
+#   api_format: "ollama"
+#   api_key: "optional-if-needed"
+#   temperature: 0.1
+#   max_tokens: 1000
+#   reasoning: false
+#   description: "Custom Model - Fast and efficient for local use"

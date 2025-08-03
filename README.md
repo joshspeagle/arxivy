@@ -7,6 +7,7 @@ This repository contains various scripts for discovering, scoring, and summarizi
 ## Overview
 
 This workflow processes arXiv papers through several stages:
+
 1. **Fetch** recent papers by category
 2. **Score** for interest/impact (via LLM)
 3. **Download** top-scoring PDFs
@@ -24,11 +25,16 @@ git clone https://github.com/joshspeagle/arxivy
 cd arxivy
 pip install -r requirements.txt
 
-# Configure (edit config/config.yaml)
-cp config/config.yaml.example config/config.yaml
+# Edit configurations
+...
 
-# Run workflow
-python ...
+# Run workflow (step-by-step)
+python src/fetch_papers.py
+python src/score_papers.py
+...
+
+# Run workflow (integrated)
+...
 ```
 
 ## Configuration
@@ -37,12 +43,12 @@ All configurations can be found in `config/config.yaml`. This is organized by op
 
 ## LLM API
 
-Configurations, API settings, and aliases for LLMs can be found in `config/llm.yaml`.
+Configurations, API settings, and aliases for LLMs can be found in `config/llm.yaml`. Currently, support is provided for external models through OpenAI, Anthropic, and Google APIs. Support for local models is provided through Ollama and LM Studio, as well as custom local APIs in either Ollama or OpenAI format. See the `config/llm.yaml` file for examples of how to specify these models.
 
 ## Project Status
 
 - ✅ Paper fetching (Step 1)
-- ⏳ LLM scoring (Step 2)
+- ✅ LLM scoring (Step 2)
 - ⏳ PDF processing (Step 3)
 - ⏳ Summarization (Step 4)
 - ⏳ Final scoring (Step 5)

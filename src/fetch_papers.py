@@ -56,7 +56,7 @@ def load_config(config_path: str = "config/config.yaml") -> Dict:
                 "require_modern_categories": True
             },
             "output": {
-                "format": "both",
+                "format": "json",
                 "base_dir": "./data"
             }
         }
@@ -547,13 +547,17 @@ class ArxivFetcher:
     def save_papers(self) -> Dict[str, str]:
         """Save papers according to the configured output format."""
         filepaths = {}
-        output_format = self.config.get("output", {}).get("format", "both")
+        output_format = self.config.get("output", {}).get("format", "json")
         
-        if output_format in ["json", "both"]:
+        if output_format in ["json"]:
             filepaths["json"] = self.save_to_json()
         
-        if output_format in ["csv", "both"]:
+        elif output_format in ["csv"]:
             filepaths["csv"] = self.save_to_csv()
+
+        else:
+            print(f"Unknown output format: {output_format}. Defaulting to JSON.")
+            filepaths["json"] = self.save_to_json()
         
         return filepaths
     

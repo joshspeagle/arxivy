@@ -1,5 +1,10 @@
 # ArXiv Digest Configuration
 
+# Output Settings
+output:
+  format: "json"  # Options: json, csv
+  base_dir: "./data"  # Base directory for output files
+
 # Paper Fetching Settings
 arxiv:
   # Categories can be found at https://arxiv.org/category_taxonomy
@@ -44,7 +49,81 @@ arxiv:
   require_modern_categories: true  # Exclude papers with only legacy categories
   request_delay: 1.0  # Rate limiting between API calls
 
-# Output Settings
-output:
-  format: "json"  # Options: json, csv, both
-  base_dir: "./data"  # Base directory for output files
+# LLM-based Paper Scoring Settings
+scoring:
+  # Input file (null = auto-detect most recent arxiv_papers_*.json/csv)
+  input_file: null
+  
+  # Model configuration (must be defined in config/llm.yaml)
+  model_alias: "gemini-25-flash-lite"
+  
+  # Limit number of papers to score (null = score all papers)
+  # Note: Papers are selected in order from arxiv fetch (first N papers)
+  max_papers: null
+  
+  # Retry configuration
+  retry_attempts: 2
+  
+  # Metadata fields to include when scoring papers
+  # Available: title, abstract, authors, categories, published, updated
+  include_metadata:
+    - title
+    - abstract
+    # - authors      # Uncomment to include author information
+    # - categories   # Uncomment to include arXiv categories
+  
+  # Three-part prompt configuration for scoring
+  
+  # Part 1: Research context - describe the researcher's background and interests
+  research_context_prompt: |
+    You are evaluating research papers for Josh Speagle, an Assistant Professor of 
+    Astrostatistics at the University of Toronto whose research motto is "Statistical AI 
+    for Cosmic Discovery." His research focuses on four core areas:
+    
+    1. **Statistical Learning & AI**: Novel methods to discover patterns from large, messy datasets
+    2. **Interpretability & Insight**: Rigorous understanding of methods to extract scientific insights
+    3. **Inference & Computation**: Robust frameworks and algorithms to quantify what we can learn from data
+    4. **Discovery & Understanding**: Applying methods to astronomical surveys to understand galaxy formation and evolution
+
+    Josh values work that advances theoretical understanding of machine learning and statistics,
+    introduces novel methodological approaches, demonstrates innovative scientific applications,
+    announces significant observational/experimental results, and has potential to influence
+    future research in ML/statistics, especially in astrophysics contexts.
+
+  # Part 2: Scoring strategy - define what criteria to use for scoring
+  scoring_strategy_prompt: |
+    Evaluate papers using this three-component framework:
+    
+    **1. RELEVANCE (40% weight):**
+    - Direct connection to astrophysics, AI/ML/statistics, or computational methods
+    - Alignment with astrostatistics, interpretable AI, Bayesian methods, or scientific applications
+    - Cross-disciplinary potential bridging stats/astro/CS
+    
+    **2. CONTRIBUTION (30% weight):**
+    - Novel techniques or significant improvements to existing methods
+    - Theoretical rigor and mathematical soundness
+    - Reproducibility, validation, and innovative AI/ML/statistics applications
+    - Provides pedagogical insights that can be leveraged for students/training programs
+    
+    **3. IMPACT (30% weight):**
+    - Directly applicable to current projects/surveys/challenges
+    - Establishes foundations for follow-up work or expected to be heavily cited
+    - Solves limiting problems or opens unexplored directions
+
+  # Part 3: Output format - strict requirements for response structure
+  score_format_prompt: |
+    Rate each component from 0-10:
+    - Relevance score (0-10): ___
+    - Contribution score (0-10): ___  
+    - Impact score (0-10): ___
+    
+    Calculate: Final Score = (Relevance × 0.4) + (Contribution × 0.3) + (Impact × 0.3)
+    Round to one decimal place.
+    
+    Provide result as JSON:
+    {
+      "score": <final_calculated_score>,
+      "explanation": "Brief 1-3 sentence assessment covering all three components."
+    }
+
+    Do not include any text outside of this JSON structure.
