@@ -192,13 +192,9 @@ class LLMManager:
                     "Google AI client not installed. Run: pip install google-generativeai"
                 )
 
-        elif provider == "local":
-            # For local models (like Ollama), you might use requests or a custom client
-            return {"base_url": config.get("base_url"), "model": config["model"]}
-
-        elif provider == "custom":
-            # Return config for custom implementations
-            return config
+        elif provider in ["ollama", "lmstudio", "local", "custom"]:
+            # Local providers don't need clients - handled directly in scoring_utils
+            return None
 
         else:
             raise ValueError(f"Unsupported provider: {provider}")

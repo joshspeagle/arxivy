@@ -60,15 +60,17 @@ Evaluate papers using this framework:
 - Practical applicability to real-world problems
         """.strip(),
         "score_format_prompt": """
-Rate each component from 0-10:
-- Relevance score (0-10): ___
-- Contribution score (0-10): ___  
-- Impact score (0-10): ___
+Rate each component from 1-10:
+- Relevance score (1-10): ___
+- Contribution score (1-10): ___
+- Impact score (1-10): ___
 
 Calculate: Final Score = (Relevance × 0.4) + (Contribution × 0.3) + (Impact × 0.3)
 Round to one decimal place.
 
-Provide result as JSON:
+Be decisive about scores. Make sure to use the full scoring range effectively for each component.
+
+IMPORTANT: Provide result as JSON:
 {
   "score": <final_calculated_score>,
   "explanation": "Brief assessment covering all three components."
@@ -99,7 +101,10 @@ class ScoringEngine:
 
         # Validate model configuration
         try:
+            # Get model configuration from LLMManager
             self.model_config = llm_manager.get_model_config(model_alias)
+
+            # Get API client from LLMManager (None for local providers)
             self.client = llm_manager.get_client(model_alias)
         except Exception as e:
             raise ValueError(f"Failed to initialize model '{model_alias}': {e}")
@@ -598,13 +603,16 @@ class ScoringEngine:
         print(f"Configured metadata: {', '.join(self.include_metadata)}")
         print()
 
-    def print_progress(self, current_index: int, paper_title: str):
+    def print_progress(
+        self, current_index: int, paper_title: str, score: Optional[float] = None
+    ):
         """
         Print progress information.
 
         Args:
             current_index: Current paper index (0-based)
             paper_title: Title of current paper
+            score: Score assigned to the paper (optional)
         """
         if self.start_time is None:
             return
@@ -627,8 +635,10 @@ class ScoringEngine:
             paper_title[:60] + "..." if len(paper_title) > 60 else paper_title
         )
 
+        score_str = f"Score: {score:.1f} | " if score is not None else ""
+
         print(
-            f"[{current_index + 1:3d}/{self.total_papers}] ({progress_pct:5.1f}%) {eta_str} | {display_title}"
+            f"[{current_index + 1:3d}/{self.total_papers}] ({progress_pct:5.1f}%) {eta_str} | {score_str}{display_title}"
         )
 
     def print_final_statistics(self):
@@ -1017,10 +1027,42 @@ def test_real_configuration(test_api_call: bool = False):
     # Test 6: Real API call (optional)
     if test_api_call:
         print("\n6. Testing real API connectivity...")
-        if not model_config.get("api_key"):
+        if not model_config.get("api_key") and model_config.get("provider") not in [
+            "ollama",
+            "lmstudio",
+            "local",
+            "custom",
+        ]:
             print("❌ Cannot test API call - no API key available")
             print("   Set your API key as an environment variable or in config")
         else:
+            provider = model_config.get("provider")
+
+            # For local providers, check if server is reachable first
+            if provider in ["ollama", "lmstudio", "local", "custom"]:
+                base_url = model_config.get("base_url", "http://localhost:1234/v1")
+                print(f"   Checking if local server is reachable: {base_url}")
+
+                try:
+                    import requests
+
+                    # Try a simple health check
+                    health_url = base_url.rstrip("/v1").rstrip("/")
+                    _ = requests.get(f"{health_url}/health", timeout=3)
+                except:
+                    try:
+                        # Try just connecting to the base URL
+                        _ = requests.get(base_url, timeout=3)
+                    except:
+                        print("❌ Local server not reachable")
+                        print(
+                            f"   Make sure your {provider} server is running on {base_url}"
+                        )
+                        print("   Skipping API test")
+                        return
+
+                print("✅ Local server is reachable")
+
             print(
                 f"   Attempting API call to {model_config.get('provider')} ({model_config.get('model')})..."
             )
@@ -1052,6 +1094,8 @@ def test_real_configuration(test_api_call: bool = False):
 
             except Exception as e:
                 print(f"❌ API call failed: {e}")
+                if "Connection" in str(e) or "timeout" in str(e).lower():
+                    print(f"   Hint: Make sure your {provider} server is running")
     else:
         print("\n6. Skipping API connectivity test")
         print("   Use --test-api to include real API call testing")

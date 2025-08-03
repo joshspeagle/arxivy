@@ -25,8 +25,11 @@ git clone https://github.com/joshspeagle/arxivy
 cd arxivy
 pip install -r requirements.txt
 
-# Edit configurations
-...
+# Edit configurations in config/
+
+# Test workflow components
+python src/llm_utils.py  # check LLM setup
+python src/score_utils.py  # check LLM/scoring setup
 
 # Run workflow (step-by-step)
 python src/fetch_papers.py

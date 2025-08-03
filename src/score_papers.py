@@ -342,13 +342,14 @@ class PaperScorer:
 
         # Score each paper
         for i, paper in enumerate(papers):
-            # Print progress
-            title = paper.get("title", "Untitled")
-            self.scoring_engine.print_progress(i, title)
-
             # Score the paper
             scored_paper = self.scoring_engine.score_paper(paper)
             scored_papers.append(scored_paper)
+
+            # Print progress after scoring, passing the score
+            title = scored_paper.get("title", "Untitled")
+            score = scored_paper.get("llm_score")
+            self.scoring_engine.print_progress(i, title, score)
 
         # Print final statistics
         self.scoring_engine.print_final_statistics()
