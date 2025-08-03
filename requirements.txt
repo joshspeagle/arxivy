@@ -14,3 +14,6 @@ numpy>=1.24.0
 
 # Development
 python-dotenv>=1.0.0
+
+# Progress bar
+tqdm>=4.64.0

@@ -20,11 +20,10 @@ import json
 import csv
 import yaml
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Set
+from typing import List, Dict, Set
 import re
 import time
 import os
-from pathlib import Path
 from urllib.parse import urlencode
 
 
