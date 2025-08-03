@@ -21,7 +21,7 @@ gpt-41-mini:
   max_tokens: 1000
   reasoning: false
   description: "GPT-4.1 Mini - Fast and cost-effective"
-  
+
 gpt-4o:
   provider: "openai"
   model: "gpt-4o"
@@ -39,7 +39,7 @@ gpt-o3:
   max_tokens: 2000
   reasoning: true
   description: "o3 - Advanced reasoning model"
-  
+
 gpt-o4-mini:
   provider: "openai"
   model: "o4-mini"
@@ -58,7 +58,7 @@ claude-opus-4:
   max_tokens: 2000
   reasoning: true
   description: "Claude Opus 4 - Most powerful, best for coding"
-  
+
 claude-sonnet-4:
   provider: "anthropic"
   model: "claude-4-sonnet"
@@ -86,7 +86,7 @@ gemini-25-pro:
   max_tokens: 1000
   reasoning: true
   description: "Gemini 2.5 Pro - Advanced reasoning with thinking"
-  
+
 gemini-25-flash:
   provider: "google"
   model: "gemini-2.5-flash"
@@ -95,7 +95,7 @@ gemini-25-flash:
   max_tokens: 1000
   reasoning: true
   description: "Gemini 2.5 Flash - Fast and efficient"
-  
+
 gemini-25-flash-lite:
   provider: "google"
   model: "gemini-2.5-flash-lite"
@@ -104,7 +104,6 @@ gemini-25-flash-lite:
   max_tokens: 1000
   reasoning: true
   description: "Gemini 2.5 Flash Lite - Most cost-effective"
-
 # Local Models
 
 # Ollama
@@ -126,7 +125,6 @@ gemini-25-flash-lite:
 #   max_tokens: 1000
 #   reasoning: false
 #   description: "Gemma 3 12B - Fast and efficient for local use"
-
 # Custom Local API (Ollama or OpenAI format)
 # custom-openai:
 #   provider: "local-company"

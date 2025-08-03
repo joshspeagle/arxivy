@@ -2,68 +2,67 @@
 
 # Output Settings
 output:
-  format: "json"  # Options: json, csv
-  base_dir: "./data"  # Base directory for output files
+  format: "json" # Options: json, csv
+  base_dir: "./data" # Base directory for output files
 
 # Paper Fetching Settings
 arxiv:
   # Categories can be found at https://arxiv.org/category_taxonomy
   categories:
+    # Compute Science Categories
+    - "cs.AI" # Artificial Intelligence
+    - "cs.CL" # Computation and Language
+    - "cs.CV" # Computer Vision
+    - "cs.LG" # Machine Learning
+    - "cs.GL" # General Computer Science
+    - "cs.HC" # Human-Computer Interaction
+    - "cs.MA" # Multiagent Systems
+    - "cs.NE" # Neural and Evolutionary Computing
 
-  # Compute Science Categories
-    - "cs.AI"             # Artificial Intelligence
-    - "cs.CL"             # Computation and Language
-    - "cs.CV"             # Computer Vision
-    - "cs.LG"             # Machine Learning
-    - "cs.GL"             # General Computer Science
-    - "cs.HC"             # Human-Computer Interaction
-    - "cs.MA"             # Multiagent Systems
-    - "cs.NE"             # Neural and Evolutionary Computing
+    # Statistics Categories
+    - "stat.AP" # Applications (Statistics)
+    - "stat.CO" # Computation (Statistics)
+    - "stat.ME" # Methodology (Statistics)
+    - "stat.ML" # Machine Learning (Statistics)
+    - "stat.OT" # Other (Statistics)
+    - "stat.TH" # Theory (Statistics)
 
-  # Statistics Categories
-    - "stat.AP"           # Applications (Statistics)
-    - "stat.CO"           # Computation (Statistics)
-    - "stat.ME"           # Methodology (Statistics)
-    - "stat.ML"           # Machine Learning (Statistics)
-    - "stat.OT"           # Other (Statistics)
-    - "stat.TH"           # Theory (Statistics)
+    # Physics Categories
+    - "astro-ph.CO" # Cosmology and Nongalactic Astrophysics
+    - "astro-ph.EP" # Earth and Planetary Astrophysics
+    - "astro-ph.GA" # General Astrophysics
+    - "astro-ph.HE" # High Energy Astrophysical Phenomena
+    - "astro-ph.IM" # Instrumentation and Methods for Astrophysics
+    - "astro-ph.SR" # Solar and Stellar Astrophysics
+    - "cond-mat.dis-nn" # Statistical Mechanics (Condensed Matter)
+    - "physics.data-an" # Data Analysis, Statistics and Probability (Physics)
+    - "physics.ed-ph" # Education (Physics)
+    - "physics.gen-ph" # General Physics
+    - "physics.geo-ph" # Geophysics
+    - "physics.space-ph" # Space Physics
 
-  # Physics Categories
-    - "astro-ph.CO"       # Cosmology and Nongalactic Astrophysics
-    - "astro-ph.EP"       # Earth and Planetary Astrophysics
-    - "astro-ph.GA"       # General Astrophysics
-    - "astro-ph.HE"       # High Energy Astrophysical Phenomena
-    - "astro-ph.IM"       # Instrumentation and Methods for Astrophysics
-    - "astro-ph.SR"       # Solar and Stellar Astrophysics
-    - "cond-mat.dis-nn"   # Statistical Mechanics (Condensed Matter)
-    - "physics.data-an"   # Data Analysis, Statistics and Probability (Physics)
-    - "physics.ed-ph"     # Education (Physics)
-    - "physics.gen-ph"    # General Physics
-    - "physics.geo-ph"    # Geophysics
-    - "physics.space-ph"  # Space Physics
-  
-  days_back: 1  # Days to look back for recent papers
-  arxiv_days_only: true  # If true, automatically shift search window if no papers found
-  max_papers_per_category: 200  # Maximum papers to fetch per category
-  filter_legacy_categories: true  # Remove legacy categories from papers
-  require_modern_categories: true  # Exclude papers with only legacy categories
-  request_delay: 1.0  # Rate limiting between API calls
+  days_back: 1 # Days to look back for recent papers
+  arxiv_days_only: true # If true, automatically shift search window if no papers found
+  max_papers_per_category: 200 # Maximum papers to fetch per category
+  filter_legacy_categories: true # Remove legacy categories from papers
+  require_modern_categories: true # Exclude papers with only legacy categories
+  request_delay: 1.0 # Rate limiting between API calls
 
 # LLM-based Paper Scoring Settings
 scoring:
   # Input file (null = auto-detect most recent arxiv_papers_*.json/csv)
   input_file: null
-  
+
   # Model configuration (must be defined in config/llm.yaml)
-  model_alias: "gemini-25-flash-lite"
-  
+  model_alias: "gemma-3"
+
   # Limit number of papers to score (null = score all papers)
   # Note: Papers are selected in order from arxiv fetch (first N papers)
   max_papers: null
-  
+
   # Retry configuration
   retry_attempts: 2
-  
+
   # Metadata fields to include when scoring papers
   # Available: title, abstract, authors, categories, published, updated
   include_metadata:
@@ -71,15 +70,15 @@ scoring:
     - abstract
     # - authors      # Uncomment to include author information
     # - categories   # Uncomment to include arXiv categories
-  
+
   # Three-part prompt configuration for scoring
-  
+
   # Part 1: Research context - describe the researcher's background and interests
   research_context_prompt: |
     You are evaluating research papers for Josh Speagle, an Assistant Professor of 
     Astrostatistics at the University of Toronto whose research motto is "Statistical AI 
     for Cosmic Discovery." His research focuses on four core areas:
-    
+
     1. **Statistical Learning & AI**: Novel methods to discover patterns from large, messy datasets
     2. **Interpretability & Insight**: Rigorous understanding of methods to extract scientific insights
     3. **Inference & Computation**: Robust frameworks and algorithms to quantify what we can learn from data
@@ -93,18 +92,18 @@ scoring:
   # Part 2: Scoring strategy - define what criteria to use for scoring
   scoring_strategy_prompt: |
     Evaluate papers using this three-component framework:
-    
+
     **1. RELEVANCE (40% weight):**
     - Direct connection to astrophysics, AI/ML/statistics, or computational methods
     - Alignment with astrostatistics, interpretable AI, Bayesian methods, or scientific applications
     - Cross-disciplinary potential bridging stats/astro/CS
-    
+
     **2. CONTRIBUTION (30% weight):**
     - Novel techniques or significant improvements to existing methods
     - Theoretical rigor and mathematical soundness
     - Reproducibility, validation, and innovative AI/ML/statistics applications
     - Provides pedagogical insights that can be leveraged for students/training programs
-    
+
     **3. IMPACT (30% weight):**
     - Directly applicable to current projects/surveys/challenges
     - Establishes foundations for follow-up work or expected to be heavily cited
@@ -116,10 +115,10 @@ scoring:
     - Relevance score (0-10): ___
     - Contribution score (0-10): ___  
     - Impact score (0-10): ___
-    
+
     Calculate: Final Score = (Relevance × 0.4) + (Contribution × 0.3) + (Impact × 0.3)
     Round to one decimal place.
-    
+
     Provide result as JSON:
     {
       "score": <final_calculated_score>,
