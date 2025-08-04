@@ -17,7 +17,6 @@ Configuration:
 
 import feedparser
 import json
-import csv
 import yaml
 from datetime import datetime, timedelta
 from typing import List, Dict, Set
@@ -541,48 +540,6 @@ class ArxivFetcher:
         print(f"Saved {len(self.papers)} papers to {filepath}")
         return filepath
 
-    def save_to_csv(self, filename: str = None) -> str:
-        """Save papers to a CSV file."""
-        if not filename:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"arxiv_papers_{timestamp}.csv"
-
-        output_dir = self.config.get("output", {}).get("base_dir", "./data")
-        filepath = os.path.join(output_dir, filename)
-
-        if not self.papers:
-            print("No papers to save")
-            return filepath
-
-        fieldnames = [
-            "id",
-            "title",
-            "authors",
-            "abstract",
-            "categories",
-            "published",
-            "updated",
-            "pdf_url",
-            "abs_url",
-            "fetched_category",
-        ]
-
-        with open(filepath, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-
-            for paper in self.papers:
-                row = paper.copy()
-                row["authors"] = "; ".join(paper["authors"])
-                row["categories"] = "; ".join(paper["categories"])
-                # Don't include filtered_categories in CSV output
-                if "filtered_categories" in row:
-                    del row["filtered_categories"]
-                writer.writerow(row)
-
-        print(f"Saved {len(self.papers)} papers to {filepath}")
-        return filepath
-
     def save_papers(self) -> Dict[str, str]:
         """Save papers according to the configured output format."""
         filepaths = {}
@@ -590,9 +547,6 @@ class ArxivFetcher:
 
         if output_format in ["json"]:
             filepaths["json"] = self.save_to_json()
-
-        elif output_format in ["csv"]:
-            filepaths["csv"] = self.save_to_csv()
 
         else:
             print(f"Unknown output format: {output_format}. Defaulting to JSON.")

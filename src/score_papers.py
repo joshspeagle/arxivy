@@ -3,7 +3,6 @@
 ArXiv Paper Scoring with LLMs
 
 Scores papers from the arxiv fetcher using configurable LLM models.
-Supports both JSON and CSV input/output formats with auto-detection.
 
 Dependencies:
     pip install openai anthropic google-generativeai pyyaml pandas
@@ -17,7 +16,6 @@ Configuration:
 
 import json
 import yaml
-import pandas as pd
 import os
 import sys
 from pathlib import Path
@@ -71,16 +69,13 @@ class PaperScorer:
         """
         output_dir = self.config.get("output", {}).get("base_dir", "./data")
 
-        # Look for arxiv_papers_*.json and *.csv files
+        # Look for arxiv_papers_*.json files
         json_pattern = os.path.join(output_dir, "arxiv_papers_*.json")
-        csv_pattern = os.path.join(output_dir, "arxiv_papers_*.csv")
 
         json_files = glob.glob(json_pattern)
-        csv_files = glob.glob(csv_pattern)
 
         # Filter out already scored files
         json_files = [f for f in json_files if "_scored" not in f]
-        csv_files = [f for f in csv_files if "_scored" not in f]
 
         # Get the most recent files
         detected_files = {}
@@ -89,10 +84,6 @@ class PaperScorer:
             # Sort by modification time, get most recent
             latest_json = max(json_files, key=os.path.getmtime)
             detected_files["json"] = latest_json
-
-        if csv_files:
-            latest_csv = max(csv_files, key=os.path.getmtime)
-            detected_files["csv"] = latest_csv
 
         return detected_files
 
@@ -112,44 +103,6 @@ class PaperScorer:
 
             if not isinstance(papers, list):
                 raise ValueError("JSON file must contain a list of papers")
-
-            return papers
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to load papers from {filepath}: {e}")
-
-    def load_papers_from_csv(self, filepath: str) -> List[Dict]:
-        """
-        Load papers from CSV file.
-
-        Args:
-            filepath: Path to CSV file
-
-        Returns:
-            List of paper dictionaries
-        """
-        try:
-            df = pd.read_csv(filepath)
-
-            # Convert DataFrame to list of dictionaries
-            papers = df.to_dict("records")
-
-            # Convert semicolon-separated fields back to lists
-            for paper in papers:
-                if "authors" in paper and pd.notna(paper["authors"]):
-                    paper["authors"] = paper["authors"].split("; ")
-                else:
-                    paper["authors"] = []
-
-                if "categories" in paper and pd.notna(paper["categories"]):
-                    paper["categories"] = paper["categories"].split("; ")
-                else:
-                    paper["categories"] = []
-
-                # Handle NaN values
-                for key, value in paper.items():
-                    if pd.isna(value):
-                        paper[key] = None
 
             return papers
 
@@ -176,55 +129,12 @@ class PaperScorer:
         except Exception as e:
             raise RuntimeError(f"Failed to save papers to {filepath}: {e}")
 
-    def save_papers_to_csv(self, papers: List[Dict], filepath: str):
-        """
-        Save papers to CSV file.
-
-        Args:
-            papers: List of paper dictionaries
-            filepath: Output file path
-        """
-        try:
-            # Ensure output directory exists
-            os.makedirs(os.path.dirname(filepath), exist_ok=True)
-
-            if not papers:
-                print("No papers to save")
-                return
-
-            # Convert to DataFrame
-            df = pd.DataFrame(papers)
-
-            # Convert list fields to semicolon-separated strings
-            if "authors" in df.columns:
-                df["authors"] = df["authors"].apply(
-                    lambda x: (
-                        "; ".join(x) if isinstance(x, list) else str(x) if x else ""
-                    )
-                )
-
-            if "categories" in df.columns:
-                df["categories"] = df["categories"].apply(
-                    lambda x: (
-                        "; ".join(x) if isinstance(x, list) else str(x) if x else ""
-                    )
-                )
-
-            # Save to CSV
-            df.to_csv(filepath, index=False, encoding="utf-8")
-
-            print(f"Saved {len(papers)} scored papers to {filepath}")
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to save papers to {filepath}: {e}")
-
-    def generate_output_filepath(self, input_filepath: str, format_type: str) -> str:
+    def generate_output_filepath(self, input_filepath: str) -> str:
         """
         Generate output filepath by adding "_scored" before the extension.
 
         Args:
             input_filepath: Original input file path
-            format_type: "json" or "csv"
 
         Returns:
             Output file path
@@ -252,8 +162,6 @@ class PaperScorer:
             # Determine format from extension
             if input_file.endswith(".json"):
                 self.input_files["json"] = input_file
-            elif input_file.endswith(".csv"):
-                self.input_files["csv"] = input_file
             else:
                 raise ValueError(f"Unsupported file format: {input_file}")
 
@@ -292,9 +200,6 @@ class PaperScorer:
         if "json" in self.input_files:
             papers = self.load_papers_from_json(self.input_files["json"])
             print(f"Loaded {len(papers)} papers from JSON file")
-        elif "csv" in self.input_files:
-            papers = self.load_papers_from_csv(self.input_files["csv"])
-            print(f"Loaded {len(papers)} papers from CSV file")
         else:
             raise RuntimeError("No valid input files found")
 
@@ -408,8 +313,6 @@ class PaperScorer:
         for format_type, output_path in self.output_files.items():
             if format_type == "json":
                 self.save_papers_to_json(papers, output_path)
-            elif format_type == "csv":
-                self.save_papers_to_csv(papers, output_path)
 
     def run(self):
         """

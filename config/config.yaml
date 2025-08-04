@@ -2,7 +2,6 @@
 
 # Output Settings
 output:
-  format: "json" # Options: json, csv
   base_dir: "./data" # Base directory for output files
 
 # Paper Fetching Settings
@@ -170,3 +169,30 @@ pdf_processing:
     # Download verification
     verify_downloads: true # Verify PDF file integrity after download
     min_file_size: 10000 # Minimum file size in bytes (10KB)
+
+  # PDF Text Extraction Configuration
+  extraction:
+    # Extraction method selection
+    method: "auto" # auto, pdfplumber, pymupdf, pypdf2, none (no extraction)
+    fallback_methods: ["pdfplumber", "pymupdf", "pypdf2"] # Try these if primary fails
+
+    # Content extraction options
+    extract_text: true # Extract text content
+
+    # Text processing options
+    preserve_formatting: false # Keep original formatting vs. clean text
+    remove_headers_footers: true # Remove page headers/footers
+    min_text_length: 1000 # Minimum characters for valid extraction
+
+    # Quality filtering
+    max_extraction_errors: 5 # Skip papers with too many extraction errors
+    require_abstract_keywords: true # Verify extraction quality using known abstracts
+
+    # Output format for extracted text
+    text_format: "markdown" # markdown, plain, json
+    include_metadata: true # Include extraction metadata in output
+
+    # Storage options for extracted content
+    save_extracted_text: true # Save extracted text to files
+    text_storage_dir: "./data/extracted_text" # Directory for text files (mirrors PDF structure)
+    cleanup_pdfs_after_extraction: true # Delete PDFs after successful extraction (ignored if none)

@@ -89,8 +89,6 @@ class PDFProcessor:
             # Determine format from extension
             if input_file.endswith(".json"):
                 return {"json": input_file}
-            elif input_file.endswith(".csv"):
-                return {"csv": input_file}
             else:
                 raise ValueError(f"Unsupported file format: {input_file}")
 
@@ -121,11 +119,6 @@ class PDFProcessor:
             papers = load_scored_papers(self.input_files["json"], "json")
             print(
                 f"Loaded {len(papers)} papers from JSON file: {self.input_files['json']}"
-            )
-        elif "csv" in self.input_files:
-            papers = load_scored_papers(self.input_files["csv"], "csv")
-            print(
-                f"Loaded {len(papers)} papers from CSV file: {self.input_files['csv']}"
             )
         else:
             raise RuntimeError("No valid input files found")
@@ -234,8 +227,6 @@ class PDFProcessor:
             input_file = list(self.input_files.values())[0]
             if input_file.endswith(".json"):
                 input_format = "json"
-            elif input_file.endswith(".csv"):
-                input_format = "csv"
 
         if input_format == "json":
             selected_json_path = os.path.join(
@@ -245,31 +236,6 @@ class PDFProcessor:
                 json.dump(enhanced_papers, f, indent=2, ensure_ascii=False)
             saved_files["selected_papers_json"] = selected_json_path
             print(f"Saved selected papers: {selected_json_path}")
-
-        elif input_format == "csv":
-            selected_csv_path = os.path.join(
-                output_dir, f"selected_papers_{timestamp}.csv"
-            )
-            df = pd.DataFrame(enhanced_papers)
-
-            # Convert list fields to semicolon-separated strings for CSV
-            if "authors" in df.columns:
-                df["authors"] = df["authors"].apply(
-                    lambda x: (
-                        "; ".join(x) if isinstance(x, list) else str(x) if x else ""
-                    )
-                )
-            if "categories" in df.columns:
-                df["categories"] = df["categories"].apply(
-                    lambda x: (
-                        "; ".join(x) if isinstance(x, list) else str(x) if x else ""
-                    )
-                )
-
-            df.to_csv(selected_csv_path, index=False, encoding="utf-8")
-            saved_files["selected_papers_csv"] = selected_csv_path
-            print(f"Saved selected papers: {selected_csv_path}")
-
         else:
             # Default to JSON if format cannot be determined
             selected_json_path = os.path.join(

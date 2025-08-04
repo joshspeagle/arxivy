@@ -543,12 +543,10 @@ def find_most_recent_scored_file():
 
     # Look for scored files
     json_pattern = os.path.join(data_dir, "*_scored.json")
-    csv_pattern = os.path.join(data_dir, "*_scored.csv")
 
     json_files = glob.glob(json_pattern)
-    csv_files = glob.glob(csv_pattern)
 
-    all_files = [(f, "json") for f in json_files] + [(f, "csv") for f in csv_files]
+    all_files = [(f, "json") for f in json_files]
 
     if not all_files:
         return None, None
@@ -558,44 +556,21 @@ def find_most_recent_scored_file():
     return most_recent
 
 
-def load_scored_papers(filepath: str, format_type: str) -> List[Dict]:
+def load_scored_papers(filepath: str) -> List[Dict]:
     """
     Load scored papers from file.
 
     Args:
         filepath: Path to the scored papers file
-        format_type: File format ('json' or 'csv')
 
     Returns:
         List of paper dictionaries
     """
-    if format_type == "json":
+    if filepath.endswith(".json"):
         with open(filepath, "r", encoding="utf-8") as f:
             return json.load(f)
-    else:  # CSV
-        import pandas as pd
-
-        df = pd.read_csv(filepath)
-        papers = df.to_dict("records")
-
-        # Convert semicolon-separated fields back to lists
-        for paper in papers:
-            if "authors" in paper and pd.notna(paper["authors"]):
-                paper["authors"] = paper["authors"].split("; ")
-            else:
-                paper["authors"] = []
-
-            if "categories" in paper and pd.notna(paper["categories"]):
-                paper["categories"] = paper["categories"].split("; ")
-            else:
-                paper["categories"] = []
-
-            # Handle NaN values
-            for key, value in paper.items():
-                if pd.isna(value):
-                    paper[key] = None
-
-        return papers
+    else:
+        raise ValueError(f"Unsupported file format: {filepath}. Expected .json")
 
 
 def test_selection_algorithm(random_seed: int = 42):
@@ -675,7 +650,7 @@ def test_real_selection():
 
     if not filepath:
         print("❌ No scored papers file found!")
-        print("Expected files: *_scored.json or *_scored.csv in ./data/ directory")
+        print("Expected files: *_scored.json in ./data/ directory")
         print("Run the scoring workflow first: python src/score_papers.py")
         return
 
