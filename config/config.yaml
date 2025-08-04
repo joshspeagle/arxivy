@@ -174,7 +174,7 @@ pdf_processing:
   extraction:
     # Extraction method selection
     method: "auto" # auto, pdfplumber, pymupdf, pypdf2, none (no extraction)
-    fallback_methods: ["pdfplumber", "pymupdf", "pypdf2"] # Try these if primary fails
+    fallback_methods: ["pymupdf", "pypdf2", "pdfplumber"] # Try these if primary fails
 
     # Content extraction options
     extract_text: true # Extract text content
@@ -189,7 +189,7 @@ pdf_processing:
     require_abstract_keywords: true # Verify extraction quality using known abstracts
 
     # Output format for extracted text
-    text_format: "markdown" # markdown, plain, json
+    text_format: "plain" # plain, markdown, json
     include_metadata: true # Include extraction metadata in output
 
     # Storage options for extracted content

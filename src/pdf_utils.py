@@ -212,12 +212,12 @@ class PDFDownloader:
                 try:
                     # Parse ISO date format (2023-01-15T10:00:00Z)
                     date_obj = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-                    date_folder = date_obj.strftime("%Y-%m")
+                    date_folder = date_obj.strftime("%Y-%m-%d")
                 except:
                     # Fallback to current date
-                    date_folder = datetime.now().strftime("%Y-%m")
+                    date_folder = datetime.now().strftime("%Y-%m-%d")
             else:
-                date_folder = datetime.now().strftime("%Y-%m")
+                date_folder = datetime.now().strftime("%Y-%m-%d")
 
             storage_path = base_path / date_folder
         else:

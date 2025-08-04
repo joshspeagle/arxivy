@@ -116,7 +116,7 @@ class PDFProcessor:
 
         # Load papers (prefer JSON format)
         if "json" in self.input_files:
-            papers = load_scored_papers(self.input_files["json"], "json")
+            papers = load_scored_papers(self.input_files["json"])
             print(
                 f"Loaded {len(papers)} papers from JSON file: {self.input_files['json']}"
             )

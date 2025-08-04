@@ -659,7 +659,7 @@ def test_real_selection():
     # Test 2: Load papers
     print("\n2. Loading scored papers...")
     try:
-        papers = load_scored_papers(filepath, format_type)
+        papers = load_scored_papers(filepath)
         print(f"✅ Loaded {len(papers)} papers")
 
         # Filter papers with valid scores
