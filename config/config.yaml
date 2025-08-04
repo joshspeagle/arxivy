@@ -75,7 +75,6 @@ scoring:
     # - categories   # Uncomment to include arXiv categories
 
   # Three-part prompt configuration for scoring
-
   # Part 1: Research context - describe the researcher's background and interests
   research_context_prompt: |
     You are evaluating research papers for Josh Speagle, an Assistant Professor of 
@@ -152,3 +151,22 @@ pdf_processing:
     n_random: 5
     temperature: 1.0
     random_seed: null # null = random seed; only set if you want reproducibility for testing
+
+  # PDF Download Configuration
+  download:
+    # Rate limiting (arXiv recommends delays between requests)
+    rate_limit_delay: 3.0 # Seconds between downloads
+    max_retries: 3 # Number of retry attempts for failed downloads
+    timeout: 30 # Timeout in seconds for each download
+
+    # Storage settings
+    storage_dir: "./data/pdfs" # Directory to store downloaded PDFs
+    organize_by_date: true # Organize PDFs in date-based subdirectories
+
+    # File naming
+    filename_format: "{arxiv_id}_{title_slug}.pdf" # Filename pattern
+    max_filename_length: 100 # Maximum filename length (excluding extension)
+
+    # Download verification
+    verify_downloads: true # Verify PDF file integrity after download
+    min_file_size: 10000 # Minimum file size in bytes (10KB)
