@@ -17,3 +17,14 @@ python-dotenv>=1.0.0
 
 # Progress bar
 tqdm>=4.64.0
+
+# PDF Processing Dependencies
+PyPDF2>=3.0.0          # PDF text extraction (lightweight)
+pdfplumber>=0.9.0       # PDF text extraction (robust)
+pymupdf>=1.23.0         # PDF text extraction (fast, also extracts images)
+python-magic>=0.4.27    # File type detection for verification
+Pillow>=9.5.0           # Image processing (for extracted images)
+
+# Optional: Advanced text processing
+beautifulsoup4>=4.12.0  # HTML cleaning (if PDFs contain HTML content)
+lxml>=4.9.0             # XML/HTML parsing support

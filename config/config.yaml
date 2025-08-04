@@ -127,3 +127,28 @@ scoring:
     (most papers are not directly relevant, make minor contributions, and have limited impact).
     Strong papers should score above a 7 in at least one component, with a final score above 5.
     Exceptional papers should score above 8 in at least two components, with a final score above 7.
+
+# PDF Processing Settings
+pdf_processing:
+  # Input file (null = auto-detect most recent arxiv_papers_*_scored.json/csv)
+  input_file: null
+
+  # Paper Selection Configuration
+  selection:
+    # Percentile-based selection: top X% of papers by score
+    percentile: 20
+
+    # Score threshold: papers must also meet minimum score requirement
+    score_threshold: 7.0
+
+    # Quantity constraints: ensure reasonable number of papers
+    min_papers: 5
+    max_papers: 25
+
+    # Random paper addition for exploration/serendipity
+    # Add n_random papers from those not included in the original selection (0 = no random addition)
+    # Sampling is based on softmax(scores / temperature) difference of 1 is a factor of e in odds
+    # Temperature controls randomness: 0 = deterministic (top-N), 1 = score-based, null = uniform
+    n_random: 5
+    temperature: 1.0
+    random_seed: null # null = random seed; only set if you want reproducibility for testing
