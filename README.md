@@ -29,11 +29,16 @@ pip install -r requirements.txt
 
 # Test workflow components
 python src/llm_utils.py  # check LLM setup
-python src/score_utils.py  # check LLM/scoring setup
+python src/score_utils.py  # check scoring setup
+python src/selection_utils.py  # check selection setup
+python src/pdf_utils.py  # check PDF download setup
+python src/extract_utils.py  # check PDF text extraction setup
 
 # Run workflow (step-by-step)
-python src/fetch_papers.py
-python src/score_papers.py
+python src/fetch_papers.py  # grab abstracts
+python src/score_papers.py  # score abstracts
+python src/download_papers.py  # subselect and download PDFs
+python src/extract_papers.py  # extract text from PDFs
 ...
 
 # Run workflow (integrated)
@@ -52,7 +57,7 @@ Configurations, API settings, and aliases for LLMs can be found in `config/llm.y
 
 - ✅ Paper fetching (Step 1)
 - ✅ LLM scoring (Step 2)
-- ⏳ PDF processing (Step 3)
+- ✅ PDF processing (Step 3)
 - ⏳ Summarization (Step 4)
 - ⏳ Final scoring (Step 5)
 - ⏳ Report generation (Step 6)
@@ -67,3 +72,7 @@ Configurations, API settings, and aliases for LLMs can be found in `config/llm.y
 ## License
 
 MIT License
+
+## Acknowledgements
+
+Made in collaboration with Claude Sonnet 4.
