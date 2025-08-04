@@ -54,11 +54,14 @@ scoring:
   input_file: null
 
   # Model configuration (must be defined in config/llm.yaml)
-  model_alias: "gemma-3"
+  model_alias: "deepseek-r1-qwen3"
 
   # Limit number of papers to score (null = score all papers)
   # Note: Papers are selected in order from arxiv fetch (first N papers)
   max_papers: null
+
+  # Batch size for scoring (number of papers per LLM request, null = single paper per request)
+  batch_size: 3
 
   # Retry configuration
   retry_attempts: 2
@@ -109,8 +112,8 @@ scoring:
     - Establishes foundations for follow-up work or expected to be heavily cited
     - Solves limiting problems or opens unexplored directions
 
-  # Part 3: Output format - strict requirements for response structure
-  score_format_prompt: |
+  # Part 3: Score calculation - define numerical scale for scores
+  score_calculation_prompt: |
     Rate each component from 1-10:
     - Relevance score (1-10): ___
     - Contribution score (1-10): ___
@@ -120,12 +123,7 @@ scoring:
     Round to one decimal place.
 
     Be decisive about scores. Make sure to use the full scoring range effectively for each component.
-    Scores should be calibrated so that a typical paper scores a 5 in each component, with exceptional papers scoring 8-10 and poor papers scoring 1-3.
-
-    IMPORTANT: Provide result as JSON:
-    {
-      "score": <final_calculated_score>,
-      "explanation": "Brief 1-3 sentence assessment covering all three components."
-    }
-
-    Do not include any text outside of this JSON structure.
+    Scores should be calibrated so that a typical paper scores a 3 in each component
+    (most papers are not directly relevant, make minor contributions, and have limited impact).
+    Strong papers should score above a 7 in at least one component, with a final score above 5.
+    Exceptional papers should score above 8 in at least two components, with a final score above 7.

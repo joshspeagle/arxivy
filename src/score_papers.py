@@ -327,7 +327,7 @@ class PaperScorer:
 
     def score_all_papers(self, papers: List[Dict]) -> List[Dict]:
         """
-        Score all papers using the LLM.
+        Score all papers using the LLM with batching support.
 
         Args:
             papers: List of papers to score
@@ -335,48 +335,14 @@ class PaperScorer:
         Returns:
             List of scored papers
         """
-        scored_papers = []
-
-        # Initialize progress tracking
-        self.scoring_engine.start_progress_tracking(len(papers))
-
-        # Score each paper
-        for i, paper in enumerate(papers):
-            # Score the paper
-            scored_paper = self.scoring_engine.score_paper(paper)
-            scored_papers.append(scored_paper)
-
-            # Print progress after scoring, passing the score
-            title = scored_paper.get("title", "Untitled")
-            score = scored_paper.get("llm_score")
-            self.scoring_engine.print_progress(i, title, score)
-
-        # Print final statistics
-        self.scoring_engine.print_final_statistics()
-
+        # Use the new batch-aware scoring method
+        scored_papers = self.scoring_engine.score_papers_batch(papers)
         return scored_papers
-
-    def save_scored_papers(self, papers: List[Dict]):
-        """
-        Save scored papers to all configured output formats.
-
-        Args:
-            papers: List of scored papers
-        """
-        print(f"\nSaving scored papers...")
-
-        for format_type, output_path in self.output_files.items():
-            if format_type == "json":
-                self.save_papers_to_json(papers, output_path)
-            elif format_type == "csv":
-                self.save_papers_to_csv(papers, output_path)
 
     def print_scoring_summary(self, papers: List[Dict]):
         """
         Print a summary of the scoring results.
-
-        Args:
-            papers: List of scored papers
+        Updated to show batch information.
         """
         print(f"\n=== SCORING SUMMARY ===")
 
@@ -387,6 +353,18 @@ class PaperScorer:
         print(f"Total papers processed: {len(papers)}")
         print(f"Successfully scored: {len(successful_scores)}")
         print(f"Failed to score: {len(failed_scores)}")
+
+        # Show batch configuration
+        batch_size = self.scoring_engine.batch_size
+        if batch_size > 1:
+            num_batches = (
+                len(papers) + batch_size - 1
+            ) // batch_size  # Ceiling division
+            print(
+                f"Batch configuration: {batch_size} papers per batch ({num_batches} batches total)"
+            )
+        else:
+            print(f"Batch configuration: Single paper mode")
 
         if successful_scores:
             scores = [p["llm_score"] for p in successful_scores]
@@ -417,6 +395,21 @@ class PaperScorer:
                 print(f"  - {title[:80]}{'...' if len(title) > 80 else ''}")
             if len(failed_scores) > 3:
                 print(f"  ... and {len(failed_scores) - 3} more")
+
+    def save_scored_papers(self, papers: List[Dict]):
+        """
+        Save scored papers to all configured output formats.
+
+        Args:
+            papers: List of scored papers
+        """
+        print(f"\nSaving scored papers...")
+
+        for format_type, output_path in self.output_files.items():
+            if format_type == "json":
+                self.save_papers_to_json(papers, output_path)
+            elif format_type == "csv":
+                self.save_papers_to_csv(papers, output_path)
 
     def run(self):
         """
