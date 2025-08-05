@@ -2,15 +2,22 @@
 """
 Paper Selection Utilities
 
-Implements sophisticated paper selection algorithms for PDF processing.
+Implements sophisticated paper selection algorithms for PDF processing and synthesis workflows.
 Supports percentile-based selection with score thresholds, min/max constraints,
 and temperature-based random sampling for exploration.
 
-Usage:
-    from selection_utils import PaperSelector
+Supports configurable score fields for different workflow stages.
 
+Usage:
+    from selection_utils import PaperSelector, SynthesisSelector
+
+    # Select papers using configured score field
     selector = PaperSelector(config)
     selected_papers = selector.select_papers(scored_papers)
+
+    # Enhanced usage for synthesis workflow
+    synthesis_selector = SynthesisSelector(config, score_field="rescored_llm_score")
+    selected_papers = synthesis_selector.select_papers(rescored_papers)
 """
 
 import numpy as np
@@ -29,17 +36,33 @@ class PaperSelector:
     1. Base selection using percentile and score thresholds
     2. Constraint adjustment to meet min/max paper requirements
     3. Optional random paper addition with temperature-based sampling
+
+    Enhanced to support configurable score fields for different workflow stages.
     """
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, score_field: str = "llm_score"):
         """
         Initialize the paper selector.
 
         Args:
-            config: Configuration dictionary containing pdf_processing settings
+            config: Configuration dictionary containing selection settings
+            score_field: Name of the score field to use for selection (default: "llm_score")
         """
         self.config = config
-        self.selection_config = config.get("pdf_processing", {}).get("selection", {})
+        self.score_field = score_field
+
+        # Determine which config section to use based on context
+        # Try synthesis.selection first, then pdf_processing.selection for backward compatibility
+        if "synthesis" in config and "selection" in config["synthesis"]:
+            self.selection_config = config["synthesis"]["selection"]
+            self.config_source = "synthesis"
+        elif "pdf_processing" in config and "selection" in config["pdf_processing"]:
+            self.selection_config = config["pdf_processing"]["selection"]
+            self.config_source = "pdf_processing"
+        else:
+            raise ValueError(
+                "No selection configuration found in config (looking for synthesis.selection or pdf_processing.selection)"
+            )
 
         # Selection parameters
         self.percentile = self.selection_config.get("percentile", 20)
@@ -57,6 +80,10 @@ class PaperSelector:
 
         # Statistics tracking
         self.selection_stats = {}
+
+        print(
+            f"Initialized PaperSelector using {self.config_source}.selection config with score_field='{self.score_field}'"
+        )
 
     def _validate_config(self):
         """Validate selection configuration parameters."""
@@ -111,15 +138,19 @@ class PaperSelector:
         Returns:
             Tuple of (selected_papers, filter_stats)
         """
-        # Filter out papers without scores
-        valid_papers = [p for p in papers if p.get("llm_score") is not None]
+        # Filter out papers without the required score field
+        valid_papers = [p for p in papers if p.get(self.score_field) is not None]
 
         if not valid_papers:
-            return [], {"error": "No papers with valid scores found"}
+            return [], {
+                "error": f"No papers with valid {self.score_field} scores found"
+            }
 
         # Sort by score (descending)
-        sorted_papers = sorted(valid_papers, key=lambda x: x["llm_score"], reverse=True)
-        scores = [p["llm_score"] for p in sorted_papers]
+        sorted_papers = sorted(
+            valid_papers, key=lambda x: x[self.score_field], reverse=True
+        )
+        scores = [p[self.score_field] for p in sorted_papers]
 
         # Calculate percentile threshold
         percentile_threshold = self._calculate_percentile_threshold(scores)
@@ -127,13 +158,14 @@ class PaperSelector:
         # Apply both filters (AND logic)
         selected_papers = []
         for paper in sorted_papers:
-            score = paper["llm_score"]
+            score = paper[self.score_field]
             if score >= percentile_threshold and score >= self.score_threshold:
                 selected_papers.append(paper)
 
         filter_stats = {
             "total_papers": len(papers),
             "valid_papers": len(valid_papers),
+            "score_field_used": self.score_field,
             "percentile_threshold": percentile_threshold,
             "score_threshold": self.score_threshold,
             "base_selected": len(selected_papers),
@@ -168,8 +200,8 @@ class PaperSelector:
 
         # Sort all papers by score for constraint adjustment
         all_sorted = sorted(
-            [p for p in papers if p.get("llm_score") is not None],
-            key=lambda x: x["llm_score"],
+            [p for p in papers if p.get(self.score_field) is not None],
+            key=lambda x: x[self.score_field],
             reverse=True,
         )
 
@@ -224,12 +256,14 @@ class PaperSelector:
             indices = np.random.choice(len(papers), size=n_samples, replace=False)
             return [papers[i] for i in indices]
 
-        # Extract scores
-        scores = np.array([p["llm_score"] for p in papers])
+        # Extract scores using the configured score field
+        scores = np.array([p[self.score_field] for p in papers])
 
         if self.temperature == 0:
             # Deterministic top-N sampling (temperature = 0)
-            sorted_papers = sorted(papers, key=lambda x: x["llm_score"], reverse=True)
+            sorted_papers = sorted(
+                papers, key=lambda x: x[self.score_field], reverse=True
+            )
             return sorted_papers[:n_samples]
 
         # Temperature-weighted sampling
@@ -270,7 +304,7 @@ class PaperSelector:
         remaining_papers = [
             p
             for p in all_papers
-            if p["id"] not in selected_ids and p.get("llm_score") is not None
+            if p["id"] not in selected_ids and p.get(self.score_field) is not None
         ]
 
         if not remaining_papers:
@@ -292,7 +326,7 @@ class PaperSelector:
             "random_papers_added": len(random_papers),
             "temperature": self.temperature,
             "random_score_range": (
-                f"{min(p['llm_score'] for p in random_papers):.1f} - {max(p['llm_score'] for p in random_papers):.1f}"
+                f"{min(p[self.score_field] for p in random_papers):.1f} - {max(p[self.score_field] for p in random_papers):.1f}"
                 if random_papers
                 else "N/A"
             ),
@@ -305,12 +339,12 @@ class PaperSelector:
         Main paper selection method implementing the full algorithm.
 
         Args:
-            papers: List of scored papers
+            papers: List of papers with scores
 
         Returns:
             Dictionary containing selected papers and detailed statistics
         """
-        print(f"Starting paper selection...")
+        print(f"Starting paper selection using score field: {self.score_field}")
         print(
             f"Selection criteria: top {self.percentile}% AND score >= {self.score_threshold}"
         )
@@ -331,7 +365,7 @@ class PaperSelector:
 
         # Stage 2: Adjust for constraints
         print(f"\nStage 2: Adjusting for min/max constraints...")
-        valid_papers = [p for p in papers if p.get("llm_score") is not None]
+        valid_papers = [p for p in papers if p.get(self.score_field) is not None]
         constrained_selected, adjustment_stats = self._adjust_for_constraints(
             valid_papers, base_selected
         )
@@ -351,6 +385,8 @@ class PaperSelector:
         # Compile final statistics
         final_stats = {
             "selection_timestamp": datetime.now().isoformat(),
+            "score_field_used": self.score_field,
+            "config_source": self.config_source,
             "config_used": {
                 "percentile": self.percentile,
                 "score_threshold": self.score_threshold,
@@ -367,13 +403,13 @@ class PaperSelector:
 
         # Sort final selection by score for consistent output
         final_selected = sorted(
-            final_selected, key=lambda x: x["llm_score"], reverse=True
+            final_selected, key=lambda x: x[self.score_field], reverse=True
         )
 
         print(f"\n=== SELECTION COMPLETE ===")
         print(f"Final selection: {len(final_selected)} papers")
         if final_selected:
-            scores = [p["llm_score"] for p in final_selected]
+            scores = [p[self.score_field] for p in final_selected]
             print(f"Selected score range: {min(scores):.1f} - {max(scores):.1f}")
 
         return {"selected_papers": final_selected, "statistics": final_stats}
@@ -406,7 +442,7 @@ class PaperSelector:
             print(f"\nMain selection ({len(main_papers)} papers):")
             for i, paper in enumerate(main_papers, 1):
                 title = paper.get("title", "Untitled")
-                score = paper["llm_score"]
+                score = paper[self.score_field]
                 categories = ", ".join(
                     paper.get("categories", [])[:3]
                 )  # Show first 3 categories
@@ -419,7 +455,7 @@ class PaperSelector:
             print(f"\nRandom selection ({len(random_papers)} papers):")
             for i, paper in enumerate(random_papers, 1):
                 title = paper.get("title", "Untitled")
-                score = paper["llm_score"]
+                score = paper[self.score_field]
                 categories = ", ".join(paper.get("categories", [])[:3])
                 print(
                     f"  {i:2d}. [{score:4.1f}] {title[:60]}{'...' if len(title) > 60 else ''}"
@@ -439,6 +475,32 @@ class PaperSelector:
             print(f"  {cat}: {count} papers")
 
 
+class SynthesisSelector(PaperSelector):
+    """
+    Specialized selector for synthesis workflow with enhanced features.
+
+    This is a convenience subclass that defaults to using rescored_llm_score
+    and provides synthesis-specific configuration handling.
+    """
+
+    def __init__(self, config: Dict, score_field: str = "rescored_llm_score"):
+        """
+        Initialize the synthesis selector.
+
+        Args:
+            config: Configuration dictionary containing synthesis.selection settings
+            score_field: Name of the score field to use (default: "rescored_llm_score")
+        """
+        super().__init__(config, score_field)
+
+        # Additional synthesis-specific validation
+        if "synthesis" not in config:
+            raise ValueError("SynthesisSelector requires 'synthesis' section in config")
+
+        print(f"Initialized SynthesisSelector for synthesis workflow")
+
+
+# Keep all the existing utility functions unchanged for backward compatibility
 def load_config(config_path: str = "config/config.yaml") -> Dict:
     """
     Load configuration from YAML file.
@@ -480,31 +542,41 @@ def load_config(config_path: str = "config/config.yaml") -> Dict:
         return default_config
 
 
-def validate_selection_config(config: Dict) -> List[str]:
+def validate_selection_config(
+    config: Dict, config_section: str = "pdf_processing"
+) -> List[str]:
     """
     Validate the paper selection configuration.
 
     Args:
         config: Configuration dictionary
+        config_section: Which config section to validate ("pdf_processing" or "synthesis")
 
     Returns:
         List of validation error messages (empty if valid)
     """
     errors = []
 
-    pdf_config = config.get("pdf_processing", {})
-    selection_config = pdf_config.get("selection", {})
+    if config_section == "pdf_processing":
+        section_config = config.get("pdf_processing", {})
+        selection_config = section_config.get("selection", {})
+    elif config_section == "synthesis":
+        section_config = config.get("synthesis", {})
+        selection_config = section_config.get("selection", {})
+    else:
+        errors.append(f"Invalid config_section: {config_section}")
+        return errors
 
     # Check required parameters
     percentile = selection_config.get("percentile")
     if percentile is None:
-        errors.append("percentile is required in pdf_processing.selection")
+        errors.append(f"percentile is required in {config_section}.selection")
     elif not 0 <= percentile <= 100:
         errors.append("percentile must be between 0 and 100")
 
     score_threshold = selection_config.get("score_threshold")
     if score_threshold is None:
-        errors.append("score_threshold is required in pdf_processing.selection")
+        errors.append(f"score_threshold is required in {config_section}.selection")
 
     min_papers = selection_config.get("min_papers", 0)
     max_papers = selection_config.get("max_papers", 100)
@@ -530,42 +602,25 @@ def validate_selection_config(config: Dict) -> List[str]:
     return errors
 
 
+# Keep existing utility functions for backward compatibility
 def find_most_recent_scored_file():
-    """
-    Find the most recent scored papers file in the data directory.
-
-    Returns:
-        Tuple of (filepath, format_type) or (None, None) if not found
-    """
+    """Find the most recent scored papers file in the data directory."""
     import glob
 
     data_dir = "./data"
-
-    # Look for scored files
     json_pattern = os.path.join(data_dir, "*_scored.json")
-
     json_files = glob.glob(json_pattern)
-
     all_files = [(f, "json") for f in json_files]
 
     if not all_files:
         return None, None
 
-    # Get most recent by modification time
     most_recent = max(all_files, key=lambda x: os.path.getmtime(x[0]))
     return most_recent
 
 
 def load_scored_papers(filepath: str) -> List[Dict]:
-    """
-    Load scored papers from file.
-
-    Args:
-        filepath: Path to the scored papers file
-
-    Returns:
-        List of paper dictionaries
-    """
+    """Load scored papers from file."""
     if filepath.endswith(".json"):
         with open(filepath, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -573,6 +628,7 @@ def load_scored_papers(filepath: str) -> List[Dict]:
         raise ValueError(f"Unsupported file format: {filepath}. Expected .json")
 
 
+# Original testing functions (maintained for backward compatibility)
 def test_selection_algorithm(random_seed: int = 42):
     """Test the selection algorithm with mock data."""
     print("=== TESTING PAPER SELECTION ALGORITHM ===")
@@ -774,6 +830,118 @@ def test_real_selection():
     print("3. Run: python src/process_pdfs.py")
 
 
+# Enhanced testing functions
+def test_synthesis_selection():
+    """Test the synthesis selection functionality with mock rescored papers."""
+    print("=== TESTING SYNTHESIS PAPER SELECTION ===")
+
+    # Create mock rescored papers
+    mock_papers = []
+    np.random.seed(42)  # For reproducible results
+
+    for i in range(30):
+        original_score = np.random.uniform(4, 9)  # Original scores
+        # Rescored scores tend to be higher and more spread out
+        rescored_score = original_score + np.random.uniform(-1, 2)
+        rescored_score = max(1, min(10, rescored_score))  # Clamp to 1-10
+
+        mock_papers.append(
+            {
+                "id": f"paper_{i:03d}",
+                "title": f"Synthesis Test Paper {i}: Advanced Research Topic",
+                "llm_score": round(original_score, 1),
+                "rescored_llm_score": round(rescored_score, 1),
+                "categories": [f'cs.{np.random.choice(["AI", "LG", "CV", "CL"])}'],
+                "llm_summary": f"This is a comprehensive summary of paper {i} covering important methodological advances...",
+            }
+        )
+
+    # Test configuration for synthesis
+    test_config = {
+        "synthesis": {
+            "selection": {
+                "score_field": "rescored_llm_score",
+                "percentile": 30,  # Top 30%
+                "score_threshold": 6.0,  # Higher threshold
+                "min_papers": 5,
+                "max_papers": 12,
+                "n_random": 2,
+                "temperature": 0.8,
+                "random_seed": 42,
+            }
+        }
+    }
+
+    print(f"Created {len(mock_papers)} mock papers with rescored scores")
+    original_scores = [p["llm_score"] for p in mock_papers]
+    rescored_scores = [p["rescored_llm_score"] for p in mock_papers]
+    print(
+        f"Original scores: {min(original_scores):.1f} - {max(original_scores):.1f}, avg: {np.mean(original_scores):.1f}"
+    )
+    print(
+        f"Rescored scores: {min(rescored_scores):.1f} - {max(rescored_scores):.1f}, avg: {np.mean(rescored_scores):.1f}"
+    )
+
+    # Test synthesis selector
+    print(f"\n=== Testing SynthesisSelector ===")
+    try:
+        synthesis_selector = SynthesisSelector(test_config)
+        result = synthesis_selector.select_papers(mock_papers)
+
+        print("✅ SynthesisSelector working correctly")
+        synthesis_selector.print_selection_details(result)
+
+        # Show score comparison
+        selected_papers = result["selected_papers"]
+        if selected_papers:
+            print(f"\n=== SCORE COMPARISON ===")
+            print(f"Selected papers by rescored score:")
+            for paper in selected_papers[:5]:
+                orig = paper["llm_score"]
+                resc = paper["rescored_llm_score"]
+                diff = resc - orig
+                title = paper["title"][:50]
+                print(f"  {orig:.1f} → {resc:.1f} ({diff:+.1f}) | {title}...")
+
+    except Exception as e:
+        print(f"❌ SynthesisSelector failed: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return
+
+    # Test backward compatibility with original selector
+    print(f"\n=== Testing Backward Compatibility ===")
+    try:
+        # Add pdf_processing config for backward compatibility test
+        test_config["pdf_processing"] = {
+            "selection": {
+                "percentile": 25,
+                "score_threshold": 5.0,
+                "min_papers": 3,
+                "max_papers": 10,
+                "n_random": 1,
+                "temperature": 1.0,
+                "random_seed": 42,
+            }
+        }
+
+        original_selector = PaperSelector(
+            test_config
+        )  # Should use llm_score by default
+        result = original_selector.select_papers(mock_papers)
+
+        print("✅ Backward compatibility maintained")
+        print(
+            f"Original selector selected {len(result['selected_papers'])} papers using llm_score"
+        )
+
+    except Exception as e:
+        print(f"❌ Backward compatibility test failed: {e}")
+
+    print(f"\n=== SYNTHESIS SELECTION TEST COMPLETE ===")
+
+
 if __name__ == "__main__":
     import sys
 
@@ -782,16 +950,22 @@ if __name__ == "__main__":
             test_selection_algorithm()
         elif sys.argv[1] in ["--test-real", "-r"]:
             test_real_selection()
+        elif sys.argv[1] in ["--test-synthesis", "-s"]:
+            test_synthesis_selection()
         elif sys.argv[1] in ["--help", "-h"]:
-            print("Paper Selection Utilities")
+            print("Enhanced Paper Selection Utilities")
             print("Usage:")
-            print("  python selection_utils.py --test     # Run algorithm tests")
+            print("  python selection_utils.py --test           # Run algorithm tests")
             print(
-                "  python selection_utils.py --test-real  # Run real selection test with scored papers"
+                "  python selection_utils.py --test-real      # Run real selection test"
             )
-            print("  python selection_utils.py --help     # Show this help")
+            print(
+                "  python selection_utils.py --test-synthesis # Run synthesis selection test"
+            )
+            print("  python selection_utils.py --help           # Show this help")
         else:
             print("Unknown option. Use --help for usage information.")
     else:
-        print("Paper Selection Utilities Module")
+        print("Enhanced Paper Selection Utilities Module")
         print("Run with --help for usage options")
+        print("New: --test-synthesis for testing synthesis workflow")

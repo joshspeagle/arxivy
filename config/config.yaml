@@ -309,3 +309,78 @@ rescoring:
 
   # Part 3: Score calculation (null = inherit from scoring.score_calculation_prompt)
   score_calculation_prompt: null
+
+# LLM-based Paper Synthesis Settings
+synthesis:
+  # Input file (null = auto-detect most recent rescored_papers_*.json)
+  input_file: null
+
+  # Model configuration (must be defined in config/llm.yaml)
+  model_alias: "deepseek-r1-qwen3"
+
+  # Paper selection (similar to pdf_processing.selection)
+  selection:
+    score_field: "rescored_llm_score" # Which score to use for selection
+    percentile: 35
+    score_threshold: 7.5
+    min_papers: 2
+    max_papers: 7
+    n_random: 3
+    temperature: 0.5
+
+  # Report generation
+  generation:
+    retry_attempts: 2
+
+    # Metadata fields to include when synthesizing papers
+    # Available: title, abstract, authors, categories, published, updated,
+    #            llm_score, llm_explanation, rescored_llm_score, rescored_llm_explanation,
+    #            llm_summary, summary_confidence, summary_source
+    include_metadata:
+      - title
+      - abstract
+      - authors
+      - categories
+      - llm_summary
+      - summary_confidence
+      - rescored_llm_score
+      - rescored_llm_explanation
+
+    # Two-part prompt configuration for synthesis
+    # Part 1: Research context (null = inherit from scoring.research_context_prompt)
+    research_context_prompt: null # Inherit from scoring config
+
+    # Part 2: Synthesis strategy for final report
+    report_prompt: |
+      Create a comprehensive research synthesis (1500-2000 words) that organizes the selected papers into coherent themes and insights.
+
+      Guidelines:
+      - Use rescored scores to guide the depth of discussion and emphasis for each paper
+      - Organize by conceptual themes and methodological approaches, not just by score ranking
+      - Identify connections, trends, and complementary approaches across papers
+      - Include practical implications and future research directions
+      - Maintain technical accuracy while being accessible to an expert audience
+
+      Structure suggestions (adapt based on the specific papers):
+      - Executive summary of key themes
+      - Thematic sections grouping related papers
+      - Methodological insights and innovations
+      - Research implications and future directions
+
+      For each paper discussed, include: title, authors, key contributions, and relevance to the broader themes.
+      Use the provided scores to emphasize the most significant contributions.
+
+    # Example alternative format (commented out for reference)
+    # podcast_prompt: |
+    #   Create a 10-15 minute conversational podcast script for "AI Research Roundup."
+    #
+    #   Structure as an engaging audio experience:
+    #   - Hook introduction highlighting the day's key themes
+    #   - Use rescored scores to determine discussion depth and emphasis
+    #   - Main segments organized by research themes (not score order)
+    #   - Include natural transitions and audio cues: [PAUSE], [EMPHASIS], [TRANSITION]
+    #   - Explain technical concepts clearly for audio consumption
+    #   - Conclude with synthesis of implications and future directions
+    #
+    #   For each paper: mention title, authors, key finding, and why it matters.
+    #   Maintain conversational tone while preserving technical accuracy.
