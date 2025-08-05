@@ -131,7 +131,7 @@ class PaperRescorer:
             List of paper dictionaries
         """
         try:
-            with open(filepath, "r", encoding="utf-8") as f:
+            with open(filepath, "r", encoding="utf-8") as f:  # Ensure UTF-8 encoding
                 papers = json.load(f)
 
             if not isinstance(papers, list):
@@ -154,7 +154,7 @@ class PaperRescorer:
             # Ensure output directory exists
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
-            with open(filepath, "w", encoding="utf-8") as f:
+            with open(filepath, "w", encoding="utf-8") as f:  # Ensure UTF-8 encoding
                 json.dump(papers, f, indent=2, ensure_ascii=False)
 
             print(f"Saved {len(papers)} rescored papers to {filepath}")
@@ -509,7 +509,7 @@ def load_config(config_path: str = "config/config.yaml") -> Dict:
         Configuration dictionary
     """
     try:
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, "r", encoding="utf-8") as f:  # Ensure UTF-8 encoding
             return yaml.safe_load(f)
     except FileNotFoundError:
         raise FileNotFoundError(f"Config file not found at {config_path}")
@@ -517,81 +517,21 @@ def load_config(config_path: str = "config/config.yaml") -> Dict:
         raise RuntimeError(f"Error loading config: {e}")
 
 
-def validate_rescoring_config(config: Dict) -> List[str]:
-    """
-    Validate the rescoring configuration.
-
-    Args:
-        config: Configuration dictionary
-
-    Returns:
-        List of validation error messages (empty if valid)
-    """
-    errors = []
-
-    rescoring_config = config.get("rescoring", {})
-    scoring_config = config.get("scoring", {})
-
-    # Check required parameters
-    model_alias = rescoring_config.get("model_alias")
-    if not model_alias:
-        errors.append("model_alias is required in rescoring configuration")
-
-    # Validate retry attempts
-    retry_attempts = rescoring_config.get("retry_attempts", 2)
-    if not isinstance(retry_attempts, int) or retry_attempts < 0:
-        errors.append("retry_attempts must be a non-negative integer")
-
-    # Validate include_metadata
-    include_metadata = rescoring_config.get("include_metadata", [])
-    if not include_metadata:
-        errors.append("include_metadata cannot be empty")
-
-    valid_metadata_fields = {
-        "title",
-        "abstract",
-        "authors",
-        "categories",
-        "published",
-        "updated",
-        "llm_summary",
-        "summary_confidence",
-        "llm_score",
-    }
-    for field in include_metadata:
-        if field not in valid_metadata_fields:
-            errors.append(f"Invalid metadata field: {field}")
-
-    # Validate batch_size
-    batch_size = rescoring_config.get("batch_size")
-    if batch_size is not None:
-        if not isinstance(batch_size, int) or batch_size < 1:
-            errors.append("batch_size must be a positive integer or null")
-
-    # Check that we can inherit prompts if they're null
-    inheritable_prompts = [
-        "research_context_prompt",
-        "scoring_strategy_prompt",
-        "score_calculation_prompt",
-    ]
-
-    for prompt_name in inheritable_prompts:
-        rescoring_value = rescoring_config.get(prompt_name)
-        scoring_value = scoring_config.get(prompt_name)
-
-        # If rescoring prompt is null, check that scoring has a value
-        if rescoring_value is None and not scoring_value:
-            errors.append(
-                f"{prompt_name} is null in rescoring config but no fallback found in scoring config"
-            )
-
-    return errors
-
-
 def main():
     """Main function to run the paper rescoring workflow."""
     print("ArXiv Paper Re-scoring with LLMs")
     print("=================================")
+
+    # Handle command line arguments
+    if len(sys.argv) > 1:
+        if sys.argv[1] in ["--test", "-t"]:
+            return test_rescoring_setup()
+        elif sys.argv[1] in ["--help", "-h"]:
+            print("Usage:")
+            print("  python rescore_papers.py          # Run rescoring workflow")
+            print("  python rescore_papers.py --test   # Test rescoring setup")
+            print("  python rescore_papers.py --help   # Show this help")
+            return 0
 
     # Load configuration
     try:
@@ -644,6 +584,175 @@ def main():
 
         traceback.print_exc()
         return 1
+
+
+def test_rescoring_setup():
+    """Test the rescoring setup and configuration."""
+    print("=== TESTING RESCORING SETUP ===")
+
+    # Test 1: Load configuration
+    print("\n1. Testing configuration loading...")
+    try:
+        config = load_config()
+        print("✅ Configuration loaded successfully")
+
+        # Check for rescoring section
+        if "rescoring" not in config:
+            print("❌ No 'rescoring' section found in config.yaml")
+            print("   Add the rescoring section as shown in the updated config")
+            return 1
+        else:
+            print("✅ Rescoring section found in configuration")
+
+    except FileNotFoundError:
+        print("❌ config/config.yaml not found")
+        return 1
+    except Exception as e:
+        print(f"❌ Error loading configuration: {e}")
+        return 1
+
+    # Test 2: Validate rescoring configuration
+    print("\n2. Testing rescoring configuration validation...")
+    try:
+        validation_errors = validate_rescoring_config(config)
+        if validation_errors:
+            print("❌ Rescoring configuration validation errors:")
+            for error in validation_errors:
+                print(f"   - {error}")
+            return 1
+        else:
+            print("✅ Rescoring configuration validation passed")
+    except Exception as e:
+        print(f"❌ Error during validation: {e}")
+        return 1
+
+    # Test 3: Check LLM model configuration
+    print("\n3. Testing LLM model configuration...")
+    try:
+        from llm_utils import LLMManager
+
+        rescoring_config = config.get("rescoring", {})
+        model_alias = rescoring_config.get("model_alias")
+
+        if not model_alias:
+            print("❌ No model_alias specified in rescoring configuration")
+            return 1
+
+        llm_manager = LLMManager()
+        model_config = llm_manager.get_model_config(model_alias)
+        print(f"✅ Model '{model_alias}' configuration loaded")
+        print(f"   Provider: {model_config.get('provider')}")
+        print(f"   Model: {model_config.get('model')}")
+
+    except Exception as e:
+        print(f"❌ Error with LLM model configuration: {e}")
+        return 1
+
+    # Test 4: Check for input files
+    print("\n4. Checking for summarization input files...")
+    summarized_count = 0  # Initialize for final check
+    summarization_files = []  # Initialize for final check
+    try:
+        import glob
+
+        data_dir = config.get("output", {}).get("base_dir", "./data")
+        summarization_pattern = os.path.join(data_dir, "summarization_results_*.json")
+        summarization_files = glob.glob(summarization_pattern)
+
+        if summarization_files:
+            latest_file = max(summarization_files, key=os.path.getmtime)
+            print(f"✅ Found summarization files for rescoring")
+            print(f"   Latest: {latest_file}")
+
+            # Quick check of file content
+            try:
+                with open(
+                    latest_file, "r", encoding="utf-8"
+                ) as f:  # Fix encoding issue
+                    papers = json.load(f)
+
+                summarized_count = sum(1 for p in papers if p.get("llm_summary"))
+                print(f"   Papers with summaries: {summarized_count}/{len(papers)}")
+
+                if summarized_count == 0:
+                    print("⚠️  No papers have summaries - run summarize_papers.py first")
+                elif summarized_count < len(papers):
+                    print(
+                        f"⚠️  Only {summarized_count}/{len(papers)} papers have summaries"
+                    )
+
+            except Exception as e:
+                print(f"⚠️  Could not analyze file content: {e}")
+                print(f"   This might be due to encoding issues or corrupted file")
+
+        else:
+            print("⚠️  No summarization_results_*.json files found")
+            print("   Run the summarization workflow first:")
+            print("   1. python src/fetch_papers.py")
+            print("   2. python src/score_papers.py")
+            print("   3. python src/download_papers.py")
+            print("   4. python src/extract_papers.py")
+            print("   5. python src/summarize_papers.py")
+
+    except Exception as e:
+        print(f"❌ Error checking input files: {e}")
+        return 1
+
+    # Test 5: Check prompt inheritance
+    print("\n5. Testing prompt inheritance...")
+    try:
+        rescoring_config = config.get("rescoring", {})
+        scoring_config = config.get("scoring", {})
+
+        inheritable_prompts = [
+            "research_context_prompt",
+            "scoring_strategy_prompt",
+            "score_calculation_prompt",
+        ]
+
+        inherited_prompts = []
+        overridden_prompts = []
+
+        for prompt_name in inheritable_prompts:
+            rescoring_value = rescoring_config.get(prompt_name)
+            scoring_value = scoring_config.get(prompt_name)
+
+            if rescoring_value is None:
+                if scoring_value:
+                    inherited_prompts.append(prompt_name)
+                else:
+                    print(
+                        f"⚠️  {prompt_name} is null with no fallback in scoring config"
+                    )
+            else:
+                overridden_prompts.append(prompt_name)
+
+        if inherited_prompts:
+            print(
+                f"✅ Will inherit {len(inherited_prompts)} prompts from scoring config:"
+            )
+            for prompt in inherited_prompts:
+                print(f"   - {prompt}")
+
+        if overridden_prompts:
+            print(f"✅ Using {len(overridden_prompts)} custom prompts for rescoring:")
+            for prompt in overridden_prompts:
+                print(f"   - {prompt}")
+
+    except Exception as e:
+        print(f"❌ Error testing prompt inheritance: {e}")
+        return 1
+
+    print(f"\n=== RESCORING SETUP TEST COMPLETE ===")
+
+    # Check if we're ready for rescoring
+    if summarization_files and summarized_count > 0:
+        print(f"\n✅ Ready to run rescoring!")
+        print(f"   Execute: python src/rescore_papers.py")
+    else:
+        print(f"\n❌  Complete the workflow first, then run rescoring")
+
+    return 0
 
 
 if __name__ == "__main__":

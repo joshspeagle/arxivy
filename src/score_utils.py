@@ -21,6 +21,7 @@ import re
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 import yaml
+import os
 
 
 def get_default_scoring_prompts() -> Dict[str, str]:
@@ -1067,78 +1068,6 @@ def validate_scoring_config(config: Dict) -> List[str]:
     return errors  # Only return blocking errors
 
 
-def validate_rescoring_config(config: Dict) -> List[str]:
-    """
-    Validate the rescoring configuration.
-
-    Args:
-        config: Configuration dictionary
-
-    Returns:
-        List of validation error messages (empty if valid)
-    """
-    errors = []
-
-    rescoring_config = config.get("rescoring", {})
-    scoring_config = config.get("scoring", {})
-
-    # Check required parameters
-    model_alias = rescoring_config.get("model_alias")
-    if not model_alias:
-        errors.append("model_alias is required in rescoring configuration")
-
-    # Validate retry attempts
-    retry_attempts = rescoring_config.get("retry_attempts", 2)
-    if not isinstance(retry_attempts, int) or retry_attempts < 0:
-        errors.append("retry_attempts must be a non-negative integer")
-
-    # Validate include_metadata
-    include_metadata = rescoring_config.get("include_metadata", [])
-    if not include_metadata:
-        errors.append("include_metadata cannot be empty")
-
-    valid_metadata_fields = {
-        "title",
-        "abstract",
-        "authors",
-        "categories",
-        "published",
-        "updated",
-        "llm_summary",
-        "summary_key_contributions",
-        "summary_confidence",
-        "llm_score",
-    }
-    for field in include_metadata:
-        if field not in valid_metadata_fields:
-            errors.append(f"Invalid metadata field: {field}")
-
-    # Validate batch_size
-    batch_size = rescoring_config.get("batch_size")
-    if batch_size is not None:
-        if not isinstance(batch_size, int) or batch_size < 1:
-            errors.append("batch_size must be a positive integer or null")
-
-    # Check that we can inherit prompts if they're null
-    inheritable_prompts = [
-        "research_context_prompt",
-        "scoring_strategy_prompt",
-        "score_calculation_prompt",
-    ]
-
-    for prompt_name in inheritable_prompts:
-        rescoring_value = rescoring_config.get(prompt_name)
-        scoring_value = scoring_config.get(prompt_name)
-
-        # If rescoring prompt is null, check that scoring has a value
-        if rescoring_value is None and not scoring_value:
-            errors.append(
-                f"{prompt_name} is null in rescoring config but no fallback found in scoring config"
-            )
-
-    return errors
-
-
 def test_scoring_utilities():
     """
     Test function to validate scoring utilities without making API calls.
@@ -1757,6 +1686,78 @@ def create_test_configurations() -> Dict[str, Dict]:
     }
 
 
+def validate_rescoring_config(config: Dict) -> List[str]:
+    """
+    Validate the rescoring configuration.
+
+    Args:
+        config: Configuration dictionary
+
+    Returns:
+        List of validation error messages (empty if valid)
+    """
+    errors = []
+
+    rescoring_config = config.get("rescoring", {})
+    scoring_config = config.get("scoring", {})
+
+    # Check required parameters
+    model_alias = rescoring_config.get("model_alias")
+    if not model_alias:
+        errors.append("model_alias is required in rescoring configuration")
+
+    # Validate retry attempts
+    retry_attempts = rescoring_config.get("retry_attempts", 2)
+    if not isinstance(retry_attempts, int) or retry_attempts < 0:
+        errors.append("retry_attempts must be a non-negative integer")
+
+    # Validate include_metadata
+    include_metadata = rescoring_config.get("include_metadata", [])
+    if not include_metadata:
+        errors.append("include_metadata cannot be empty")
+
+    valid_metadata_fields = {
+        "title",
+        "abstract",
+        "authors",
+        "categories",
+        "published",
+        "updated",
+        "llm_summary",
+        "summary_key_contributions",
+        "summary_confidence",
+        "llm_score",
+    }
+    for field in include_metadata:
+        if field not in valid_metadata_fields:
+            errors.append(f"Invalid metadata field: {field}")
+
+    # Validate batch_size
+    batch_size = rescoring_config.get("batch_size")
+    if batch_size is not None:
+        if not isinstance(batch_size, int) or batch_size < 1:
+            errors.append("batch_size must be a positive integer or null")
+
+    # Check that we can inherit prompts if they're null
+    inheritable_prompts = [
+        "research_context_prompt",
+        "scoring_strategy_prompt",
+        "score_calculation_prompt",
+    ]
+
+    for prompt_name in inheritable_prompts:
+        rescoring_value = rescoring_config.get(prompt_name)
+        scoring_value = scoring_config.get(prompt_name)
+
+        # If rescoring prompt is null, check that scoring has a value
+        if rescoring_value is None and not scoring_value:
+            errors.append(
+                f"{prompt_name} is null in rescoring config but no fallback found in scoring config"
+            )
+
+    return errors
+
+
 def test_rescoring_configuration():
     """Test rescoring configuration validation with various scenarios."""
     print("=== TESTING RESCORING CONFIGURATION ===")
@@ -1959,7 +1960,62 @@ Critical for next-generation surveys like LSST. Methods are generalizable to oth
     print(f"Next step: Run real rescoring with actual summarized papers")
 
 
-# Example usage and testing
+def test_rescoring_full_workflow():
+    """Test the complete rescoring setup and workflow."""
+    print("=== TESTING COMPLETE RESCORING SETUP ===")
+
+    # Run configuration tests
+    test_rescoring_configuration()
+
+    # Run workflow tests
+    test_rescoring_workflow()
+
+    # Test file detection
+    print("\n=== TESTING FILE DETECTION ===")
+    try:
+        import glob
+
+        # Look for summarization files
+        data_dir = "./data"
+        summarization_pattern = os.path.join(data_dir, "summarization_results_*.json")
+        summarization_files = glob.glob(summarization_pattern)
+
+        if summarization_files:
+            latest_file = max(summarization_files, key=os.path.getmtime)
+            print(f"✅ Found summarization files:")
+            print(f"   Latest: {latest_file}")
+
+            # Check file content
+            import json
+
+            try:
+                with open(
+                    latest_file, "r", encoding="utf-8"
+                ) as f:  # Ensure UTF-8 encoding
+                    papers = json.load(f)
+
+                summarized_count = sum(1 for p in papers if p.get("llm_summary"))
+                print(f"   Papers with summaries: {summarized_count}/{len(papers)}")
+
+                if summarized_count > 0:
+                    print(f"✅ Ready for rescoring workflow")
+                else:
+                    print(f"⚠️  No papers have summaries yet")
+
+            except Exception as e:
+                print(f"⚠️  Could not read file: {e}")
+
+        else:
+            print(f"⚠️  No summarization_results_*.json files found")
+            print(f"   This is normal if you haven't run the summarization step yet")
+
+    except Exception as e:
+        print(f"❌ Error checking files: {e}")
+
+    print(f"\n=== RESCORING TESTS COMPLETE ===")
+    print(f"Run 'python src/rescore_papers.py --test' for setup validation")
+
+
 if __name__ == "__main__":
     import sys
 
@@ -1973,8 +2029,7 @@ if __name__ == "__main__":
         elif sys.argv[1] in ["--test-batch", "--batch", "-b"]:
             test_real_configuration(test_api_call=True, test_batching=True)
         elif sys.argv[1] in ["--test-rescore", "--rescore", "-rs"]:
-            test_rescoring_configuration()
-            test_rescoring_workflow()
+            test_rescoring_full_workflow()
         elif sys.argv[1] in ["--defaults", "-d"]:
             display_default_prompts()
         elif sys.argv[1] in ["--configs", "-c"]:
