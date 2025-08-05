@@ -33,12 +33,16 @@ python src/score_utils.py  # check scoring setup
 python src/selection_utils.py  # check selection setup
 python src/pdf_utils.py  # check PDF download setup
 python src/extract_utils.py  # check PDF text extraction setup
+python src/summarize_utils.py  # check LLM summarization setup
+...
 
 # Run workflow (step-by-step)
 python src/fetch_papers.py  # grab abstracts
-python src/score_papers.py  # score abstracts
+python src/score_papers.py  # score abstracts (with LLM)
 python src/download_papers.py  # subselect and download PDFs
-python src/extract_papers.py  # extract text from PDFs
+python src/extract_papers.py  # extract text from PDFs (optional)
+python src/summarize_papers.py  # summarize papers (with LLM)
+python src/rescore_papers.py  # rescore papers using summaries (with LLM)
 ...
 
 # Run workflow (integrated)
@@ -66,8 +70,8 @@ Configurations, API settings, and aliases for LLMs can be found in `config/llm.y
 ## Requirements
 
 - Python 3.8+
-- API keys for chosen LLM services
-- ~2GB storage for paper caching
+- API keys for chosen LLM services (if needed)
+- Storage for paper caching
 
 ## License
 
