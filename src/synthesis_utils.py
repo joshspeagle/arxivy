@@ -239,6 +239,8 @@ class PaperSynthesizer:
                         paper_section.append(f"Summary: {summary_text}")
                     elif field in ["rescored_llm_score", "llm_score"]:
                         paper_section.append(f"Score ({field}): {value}")
+                    elif field in ["rescored_llm_explanation", "llm_explanation"]:
+                        paper_section.append(f"Score Explanation: {value}")
                     elif field == "summary_confidence":
                         paper_section.append(f"Summary Confidence: {value}")
                     elif field == "published":
@@ -703,6 +705,7 @@ def test_synthesis_utilities():
                     "abstract",
                     "llm_summary",
                     "rescored_llm_score",
+                    "rescored_llm_explanation",
                 ],
             },
         }
@@ -738,6 +741,7 @@ def test_synthesis_utilities():
             "categories": ["cs.CL", "cs.LG"],
             "llm_summary": "The paper introduces an improved transformer model with attention mechanisms...",
             "rescored_llm_score": 8.5,
+            "rescored_llm_explanation": "Significant methodological advance with strong empirical validation in NLP tasks.",
         },
         {
             "id": "paper2",
@@ -746,6 +750,7 @@ def test_synthesis_utilities():
             "categories": ["cs.LG", "stat.ML"],
             "llm_summary": "This work combines Bayesian inference with deep learning for uncertainty quantification...",
             "rescored_llm_score": 7.8,
+            "rescored_llm_explanation": "Solid theoretical contribution with practical applications in uncertainty estimation.",
         },
         {
             "id": "paper3",
@@ -754,6 +759,7 @@ def test_synthesis_utilities():
             "categories": ["cs.LG", "cs.AI"],
             "llm_summary": "The paper demonstrates how transformer architectures can be effectively used in RL...",
             "rescored_llm_score": 8.2,
+            "rescored_llm_explanation": "Novel architectural approach with promising experimental results in RL domains.",
         },
     ]
 
@@ -780,9 +786,14 @@ def test_synthesis_utilities():
         )
 
         # Test response validation
-        good_response = (
-            "This is a comprehensive synthesis of recent research papers. " * 20
-        )  # Long enough
+        good_response = """This is a comprehensive synthesis of recent research papers in machine learning and artificial intelligence.
+
+The papers demonstrate significant advances in transformer architectures and their applications across multiple domains. Several key themes emerge from this analysis.
+
+First, there is a clear trend toward more efficient attention mechanisms that reduce computational complexity while maintaining performance. Second, the integration of uncertainty quantification methods is becoming increasingly important for real-world applications.
+
+These developments have important implications for the field and suggest promising directions for future research."""
+
         bad_response = "Too short."
 
         is_valid_good, _ = synthesizer._validate_synthesis_response(good_response)
