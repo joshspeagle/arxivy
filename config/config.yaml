@@ -163,18 +163,18 @@ pdf_processing:
     organize_by_date: true # Organize PDFs in date-based subdirectories
 
     # File naming
-    filename_format: "{arxiv_id}_{title_slug}.pdf" # Filename pattern
+    filename_format: "{arxiv_id}_{title_slug}.pdf" # Filename pattern (should use {arxiv_id}, {title_slug})
     max_filename_length: 100 # Maximum filename length (excluding extension)
 
     # Download verification
     verify_downloads: true # Verify PDF file integrity after download
-    min_file_size: 10000 # Minimum file size in bytes (10KB)
+    min_file_size: 10000 # Minimum file size in bytes
 
   # PDF Text Extraction Configuration
   extraction:
     # Extraction method selection
     method: "auto" # auto, pdfplumber, pymupdf, pypdf2, none (no extraction)
-    fallback_methods: ["pymupdf", "pypdf2", "pdfplumber"] # Try these if primary fails
+    fallback_methods: ["pymupdf", "pypdf2", "pdfplumber"] # Try these in order if primary fails
 
     # Content extraction options
     extract_text: true # Extract text content
@@ -196,3 +196,79 @@ pdf_processing:
     save_extracted_text: true # Save extracted text to files
     text_storage_dir: "./data/extracted_text" # Directory for text files (mirrors PDF structure)
     cleanup_pdfs_after_extraction: true # Delete PDFs after successful extraction (ignored if none)
+
+# LLM-based Paper Summarization Settings
+summarization:
+  # Input file (null = auto-detect most recent extraction_results_*.json or selected_papers_*.json)
+  input_file: null
+
+  # Model configuration (must be defined in config/llm.yaml)
+  model_alias: "deepseek-r1-qwen3"
+
+  # Limit number of papers to summarize (null = summarize all papers)
+  # Note: Papers are selected based on previous top scores
+  max_papers: null
+
+  # Retry configuration
+  retry_attempts: 2
+
+  # Text processing preferences
+  prefer_extracted_text: true # Prefer extracted text over direct PDF processing
+
+  # Token limits and chunking configuration (only applies to extracted text)
+  max_single_chunk_tokens: 20000 # If extracted text fits in this, process as single chunk
+  max_chunk_tokens: 15000 # Maximum tokens per chunk when chunking is needed
+  chunk_overlap_ratio: 0.2 # Overlap between chunks (0.0-0.5)
+
+  # Three-part prompt configuration for summarization
+  # Part 1: Research context - describe the target audience and focus areas
+  research_context_prompt: |
+    You are summarizing research papers for Josh Speagle, an Assistant Professor of 
+    Astrostatistics at the University of Toronto whose research motto is "Statistical AI 
+    for Cosmic Discovery." His research focuses on four core areas:
+
+    1. **Statistical Learning & AI**: Novel methods to discover patterns from large, messy datasets
+    2. **Interpretability & Insight**: Rigorous understanding of methods to extract scientific insights
+    3. **Inference & Computation**: Robust frameworks and algorithms to quantify what we can learn from data
+    4. **Discovery & Understanding**: Applying methods to astronomical surveys to understand galaxy formation and evolution
+
+    The summaries should be technical and comprehensive, suitable for an expert reader who wants to 
+    understand the key methodological contributions, experimental validation, and broader implications.
+
+  # Part 2: Summarization strategy - define the structure and focus areas
+  summarization_strategy_prompt: |
+    Create a comprehensive technical summary structured as follows:
+
+    **1. CORE CONTRIBUTION (1 paragraph):**
+    - Main innovation, finding, or theoretical advance
+    - What makes this work novel or significant
+
+    **2. METHODOLOGY (1-3 paragraphs):**
+    - Key technical approaches and methods used
+    - Novel algorithmic or experimental techniques
+    - Important implementation details
+
+    **3. RESULTS (1-3 paragraphs):**
+    - Primary findings and their quantitative significance
+    - Comparison with existing approaches or baselines
+    - Statistical significance and validation methods
+
+    **4. IMPLICATIONS (1 paragraph):**
+    - Broader impact on the field or related areas
+    - Future research directions or applications
+    - Limitations or areas for improvement
+
+    Not all sections may apply to every paper, but try to use this structure as a guide.
+    You can adjust the number of paragraphs, the level of detail, and the focus areas based on the paper's
+    topic, complexity, and length.
+
+  # Part 3: Format and style guidelines
+  summary_format_prompt: |
+    Length: Aim for 1-2 pages (1000-2000 words maximum).
+    Format: Use clear markdown structure with section headers.
+    Style: Technical but accessible, suitable for expert readers.
+    Focus: Emphasize reproducibility, methodology, and practical significance.
+
+    Do not attempt to reproduce mathematical equations or complex formulas.
+    Instead, describe them in words (e.g., "uses a modified loss function that combines...")
+    Highlight connections to statistical methods, AI/ML techniques, and scientific applications.

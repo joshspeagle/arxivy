@@ -58,7 +58,7 @@ Configurations, API settings, and aliases for LLMs can be found in `config/llm.y
 - ✅ Paper fetching (Step 1)
 - ✅ LLM scoring (Step 2)
 - ✅ PDF processing (Step 3)
-- ⏳ Summarization (Step 4)
+- ✅ Summarization (Step 4)
 - ⏳ Final scoring (Step 5)
 - ⏳ Report generation (Step 6)
 - ⏳ Optional: Audio synthesis (Step 7)
