@@ -216,7 +216,7 @@ summarization:
   prefer_extracted_text: true # Prefer extracted text over direct PDF processing
 
   # Token limits and chunking configuration (only applies to extracted text)
-  max_single_chunk_tokens: 20000 # If extracted text fits in this, process as single chunk
+  max_single_chunk_tokens: 18000 # If extracted text fits in this, process as single chunk
   max_chunk_tokens: 15000 # Maximum tokens per chunk when chunking is needed
   chunk_overlap_ratio: 0.2 # Overlap between chunks (0.0-0.5)
 
@@ -264,11 +264,11 @@ summarization:
 
   # Part 3: Format and style guidelines
   summary_format_prompt: |
-    Length: Aim for 1-2 pages (1000-2000 words maximum).
+    Length: Aim for 1-2 pages (800-1500 words maximum).
     Format: Use clear markdown structure with section headers.
-    Style: Technical but accessible, suitable for expert readers.
-    Focus: Emphasize reproducibility, methodology, and practical significance.
+    Style: Technical but concise, suitable for expert readers.
+    Focus: Emphasize key findings, methodology, and practical significance.
 
     Do not attempt to reproduce mathematical equations or complex formulas.
-    Instead, describe them in words (e.g., "uses a modified loss function that combines...")
-    Highlight connections to statistical methods, AI/ML techniques, and scientific applications.
+    Instead, describe them concisely (e.g., "uses a modified loss function that combines...").
+    Avoid verbose explanations and focus on the most important insights.

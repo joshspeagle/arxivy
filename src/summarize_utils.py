@@ -62,13 +62,14 @@ Create a comprehensive technical summary structured as follows:
 - Limitations or areas for improvement
         """.strip(),
         "summary_format_prompt": """
-Length: Aim for 1-2 pages (1000-2000 words maximum).
+Length: Aim for 1-2 pages (800-1500 words maximum).
 Format: Use clear markdown structure with section headers.
-Style: Technical but accessible, suitable for expert readers.
-Focus: Emphasize reproducibility, methodology, and practical significance.
+Style: Technical but concise, suitable for expert readers.
+Focus: Emphasize key findings, methodology, and practical significance.
 
 Do not attempt to reproduce mathematical equations or complex formulas.
-Instead, describe them in words (e.g., "uses a modified loss function that combines...")
+Instead, describe them concisely (e.g., "uses a modified loss function that combines...").
+Avoid verbose explanations and focus on the most important insights.
         """.strip(),
     }
 
@@ -300,28 +301,29 @@ class PaperSummarizer:
 
         return chunks
 
-    def _extract_confidence_from_summary(
-        self, summary_text: str
-    ) -> Tuple[str, float, List[str]]:
+    def _extract_confidence_from_summary(self, summary_text: str) -> Tuple[str, float]:
         """
-        Extract confidence level and key contributions from summary text.
+        Extract confidence level from summary text and clean it.
 
         Args:
             summary_text: The complete summary text
 
         Returns:
-            Tuple of (clean_summary, confidence_score, key_contributions)
+            Tuple of (clean_summary, confidence_score)
         """
+        # Remove thinking tokens first
+        clean_text = self._remove_thinking_tokens(summary_text)
+
         # Look for confidence statement at the end with corrected grammar
         confidence_pattern = (
             r"CONFIDENCE:\s*I have (high|medium|low) confidence.*?(?:\.|$)"
         )
         confidence_match = re.search(
-            confidence_pattern, summary_text, re.IGNORECASE | re.DOTALL
+            confidence_pattern, clean_text, re.IGNORECASE | re.DOTALL
         )
 
         confidence_score = 0.8  # Default
-        clean_summary = summary_text
+        clean_summary = clean_text
 
         if confidence_match:
             confidence_level = confidence_match.group(1).lower()
@@ -330,65 +332,64 @@ class PaperSummarizer:
             confidence_score = confidence_mapping.get(confidence_level, 0.7)
 
             # Remove confidence statement from summary
-            clean_summary = summary_text[: confidence_match.start()].strip()
+            clean_summary = clean_text[: confidence_match.start()].strip()
         else:
             # Try alternative patterns (including old grammar for backwards compatibility)
             alt_patterns = [
                 r"CONFIDENCE:\s*I am (high|medium|low) confidence",  # Old grammar
+                r"CONFIDENCE:\s*I have\s+(high|medium|low) confidence",  # Handle extra spaces
+                r"CONFIDENCE:\s*I have\s+confidence",  # Incomplete - default to medium
                 r"confidence[:\s]+(high|medium|low)",
                 r"I (?:am|have) (very confident|confident|somewhat confident|not very confident)",
                 r"(high|medium|low) confidence",
             ]
 
             for pattern in alt_patterns:
-                match = re.search(pattern, summary_text, re.IGNORECASE)
+                match = re.search(pattern, clean_text, re.IGNORECASE)
                 if match:
-                    level = match.group(1).lower()
-                    if "high" in level or "very confident" in level:
-                        confidence_score = 0.9
-                    elif "medium" in level or level == "confident":
-                        confidence_score = 0.7
-                    elif "low" in level or "not very" in level or "somewhat" in level:
-                        confidence_score = 0.4
+                    if len(match.groups()) == 0:
+                        # Pattern matched but no level captured (incomplete statement)
+                        confidence_score = 0.7  # Default to medium
+                    else:
+                        level = match.group(1).lower()
+                        if "high" in level or "very confident" in level:
+                            confidence_score = 0.9
+                        elif "medium" in level or level == "confident":
+                            confidence_score = 0.7
+                        elif (
+                            "low" in level or "not very" in level or "somewhat" in level
+                        ):
+                            confidence_score = 0.4
 
                     # Try to remove this statement
                     clean_summary = re.sub(
-                        pattern, "", summary_text, flags=re.IGNORECASE
+                        pattern, "", clean_text, flags=re.IGNORECASE
                     ).strip()
                     break
 
-        # Extract key contributions by looking for numbered points or bullet points
-        key_contributions = []
+        return clean_summary, confidence_score
 
-        # Look for contribution sections
-        contrib_patterns = [
-            r"(?:CORE CONTRIBUTION|CONTRIBUTIONS?|KEY FINDINGS?)[:\s]*\n?([^\n]*(?:\n[^\n]*)*?)(?=\n\n|\n[A-Z][A-Z]|\nCONFIDENCE|$)",
-            r"(?:main contribution|primary contribution|key innovation)[:\s]*([^\n.]*)",
-        ]
+    def _remove_thinking_tokens(self, text: str) -> str:
+        """
+        Remove thinking tokens and other unwanted content from LLM output.
 
-        for pattern in contrib_patterns:
-            matches = re.findall(pattern, clean_summary, re.IGNORECASE | re.DOTALL)
-            for match in matches:
-                # Clean up and split into points
-                text = match.strip()
-                # Split on bullet points or numbered items
-                points = re.split(r"[-•*]\s*|\d+\.\s*", text)
-                for point in points:
-                    point = point.strip()
-                    if len(point) > 10:  # Ignore very short points
-                        key_contributions.append(point)
+        Args:
+            text: Raw text from LLM
 
-        # If no contributions found, try to extract first few sentences
-        if not key_contributions:
-            sentences = re.split(r"[.!?]+\s+", clean_summary)
-            key_contributions = [
-                s.strip() for s in sentences[:3] if len(s.strip()) > 20
-            ]
+        Returns:
+            Cleaned text
+        """
+        # Remove thinking blocks
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
 
-        # Limit to reasonable number
-        key_contributions = key_contributions[:5]
+        # Remove any remaining XML-like tags that might leak through
+        text = re.sub(r"<[^>]+>", "", text)
 
-        return clean_summary, confidence_score, key_contributions
+        # Clean up extra whitespace
+        text = re.sub(r"\n\s*\n\s*\n", "\n\n", text)  # Multiple newlines to double
+        text = text.strip()
+
+        return text
 
     def _summarize_single_content(
         self, text_content: str, pdf_path: str, paper: Dict
@@ -766,7 +767,7 @@ Organize the merged content using the standard structure:
         self, response_text: str
     ) -> Tuple[bool, Optional[Dict]]:
         """
-        Validate and parse the summary response using simplified format.
+        Validate and parse the summary response using the new simplified format.
 
         Args:
             response_text: Raw response from LLM
@@ -779,22 +780,17 @@ Organize the merged content using the standard structure:
             if not response_text or len(response_text.strip()) < 100:
                 return False, None
 
-            # Extract confidence and key contributions
-            clean_summary, confidence_score, key_contributions = (
-                self._extract_confidence_from_summary(response_text)
+            # Extract confidence and clean the summary
+            clean_summary, confidence_score = self._extract_confidence_from_summary(
+                response_text
             )
 
-            # Check if we have a valid summary
+            # Check if we have a valid summary after cleaning
             if len(clean_summary.strip()) < 50:
                 return False, None
 
-            # Create the structured data
-            parsed_data = {
-                "summary": clean_summary,
-                "key_contributions": key_contributions,
-                "methodology_tags": [],  # Could extract these later if needed
-                "confidence": confidence_score,
-            }
+            # Create the simplified structured data
+            parsed_data = {"summary": clean_summary, "confidence": confidence_score}
 
             return True, parsed_data
 
@@ -821,8 +817,6 @@ Organize the merged content using the standard structure:
             enhanced_paper.update(
                 {
                     "llm_summary": None,
-                    "summary_key_contributions": [],
-                    "summary_methodology_tags": [],
                     "summary_confidence": 0.0,
                     "summary_source": "none",
                     "summary_chunked": False,
@@ -876,12 +870,6 @@ Organize the merged content using the standard structure:
                     enhanced_paper.update(
                         {
                             "llm_summary": summary_data["summary"],
-                            "summary_key_contributions": summary_data[
-                                "key_contributions"
-                            ],
-                            "summary_methodology_tags": summary_data[
-                                "methodology_tags"
-                            ],
                             "summary_confidence": summary_data["confidence"],
                             "summary_source": source_type,
                             "summary_chunked": needs_chunking,
@@ -930,8 +918,6 @@ Organize the merged content using the standard structure:
         enhanced_paper.update(
             {
                 "llm_summary": None,
-                "summary_key_contributions": [],
-                "summary_methodology_tags": [],
                 "summary_confidence": 0.0,
                 "summary_source": source_type,
                 "summary_chunked": needs_chunking,
@@ -1044,99 +1030,128 @@ def display_default_summarization_prompts():
 
 def test_summarization_utilities():
     """Test summarization utilities with mock setup."""
-    print("=== TESTING SUMMARIZATION UTILITIES ===")
+    print("=== TESTING SIMPLIFIED SUMMARIZATION UTILITIES ===")
+
+    # Test thinking token removal
+    print("\n1. Testing thinking token removal...")
+    test_text_with_thinking = """<think>
+This is internal reasoning that should be removed.
+Let me think about this...
+</think>
+
+**Summary of the Paper**
+
+This is the actual summary content that should remain.
+
+CONFIDENCE: I have high confidence in this summary based on clear methodology."""
+
+    class MockProcessor:
+        def _remove_thinking_tokens(self, text):
+            # Remove thinking blocks
+            text = re.sub(
+                r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE
+            )
+            # Remove any remaining XML-like tags
+            text = re.sub(r"<[^>]+>", "", text)
+            # Clean up extra whitespace
+            text = re.sub(r"\n\s*\n\s*\n", "\n\n", text)
+            text = text.strip()
+            return text
+
+    processor = MockProcessor()
+    cleaned = processor._remove_thinking_tokens(test_text_with_thinking)
+
+    print(f"   Original length: {len(test_text_with_thinking)} chars")
+    print(f"   Cleaned length: {len(cleaned)} chars")
+    print(f"   Thinking tokens removed: {'<think>' not in cleaned}")
+    print("   ✅ Thinking token removal working")
 
     # Test confidence extraction
-    print("\n1. Testing confidence extraction...")
+    print("\n2. Testing confidence extraction...")
     test_summaries = [
         "This is a great paper about AI. CONFIDENCE: I have high confidence in this summary based on clear methodology.",
         "The paper discusses machine learning. CONFIDENCE: I have medium confidence in this assessment.",
         "Complex analysis of data. CONFIDENCE: I have low confidence due to limited information available.",
         "Standard paper without confidence statement.",
         "Legacy format: CONFIDENCE: I am high confidence in this summary.",  # Test backwards compatibility
+        "Malformed: CONFIDENCE: I have  confidence in this summary based on missing level.",  # Test missing level
     ]
 
     class MockSummarizer:
+        def _remove_thinking_tokens(self, text):
+            return text  # No thinking tokens in test cases
+
         def _extract_confidence_from_summary(self, summary_text):
-            # Simplified version of the method for testing
+            # Remove thinking tokens first
+            clean_text = self._remove_thinking_tokens(summary_text)
+
+            # Look for confidence statement
             confidence_pattern = (
                 r"CONFIDENCE:\s*I have (high|medium|low) confidence.*?(?:\.|$)"
             )
             confidence_match = re.search(
-                confidence_pattern, summary_text, re.IGNORECASE | re.DOTALL
+                confidence_pattern, clean_text, re.IGNORECASE | re.DOTALL
             )
 
             confidence_score = 0.8  # Default
-            clean_summary = summary_text
+            clean_summary = clean_text
 
             if confidence_match:
                 confidence_level = confidence_match.group(1).lower()
                 confidence_mapping = {"high": 0.9, "medium": 0.7, "low": 0.4}
                 confidence_score = confidence_mapping.get(confidence_level, 0.7)
-                clean_summary = summary_text[: confidence_match.start()].strip()
+                clean_summary = clean_text[: confidence_match.start()].strip()
             else:
                 # Try legacy pattern
                 legacy_match = re.search(
                     r"CONFIDENCE:\s*I am (high|medium|low) confidence",
-                    summary_text,
+                    clean_text,
                     re.IGNORECASE,
                 )
                 if legacy_match:
                     confidence_level = legacy_match.group(1).lower()
                     confidence_mapping = {"high": 0.9, "medium": 0.7, "low": 0.4}
                     confidence_score = confidence_mapping.get(confidence_level, 0.7)
-                    clean_summary = summary_text[: legacy_match.start()].strip()
+                    clean_summary = clean_text[: legacy_match.start()].strip()
 
-            # Simple key contributions extraction
-            key_contributions = clean_summary.split(". ")[:3]
-
-            return clean_summary, confidence_score, key_contributions
+            return clean_summary, confidence_score
 
     mock_summarizer = MockSummarizer()
 
     for i, summary in enumerate(test_summaries, 1):
-        clean, confidence, contributions = (
-            mock_summarizer._extract_confidence_from_summary(summary)
-        )
-        print(
-            f"   Test {i}: Confidence = {confidence:.1f}, Contributions = {len(contributions)}"
-        )
+        clean, confidence = mock_summarizer._extract_confidence_from_summary(summary)
+        print(f"   Test {i}: Confidence = {confidence:.1f}")
 
     print("   ✅ Confidence extraction working (including backwards compatibility)")
 
     # Test confidence instruction generation
-    print("\n2. Testing confidence instruction...")
+    print("\n3. Testing confidence instruction...")
     instruction = get_confidence_instruction()
     print(f"   Standard instruction: {instruction[:50]}...")
     assert "I have" in instruction, "Should use correct grammar"
     assert "[high/medium/low]" in instruction, "Should include options"
     print("   ✅ Confidence instruction properly formatted")
 
-    # Test response validation
-    print("\n3. Testing response validation...")
+    # Test simplified response validation
+    print("\n4. Testing simplified response validation...")
 
     class MockValidator:
         def _extract_confidence_from_summary(self, summary_text):
-            return summary_text.strip(), 0.8, ["test contribution"]
+            return summary_text.strip(), 0.8
 
         def _validate_summary_response(self, response_text):
             try:
                 if not response_text or len(response_text.strip()) < 100:
                     return False, None
 
-                clean_summary, confidence_score, key_contributions = (
-                    self._extract_confidence_from_summary(response_text)
+                clean_summary, confidence_score = self._extract_confidence_from_summary(
+                    response_text
                 )
 
                 if len(clean_summary.strip()) < 50:
                     return False, None
 
-                parsed_data = {
-                    "summary": clean_summary,
-                    "key_contributions": key_contributions,
-                    "methodology_tags": [],
-                    "confidence": confidence_score,
-                }
+                parsed_data = {"summary": clean_summary, "confidence": confidence_score}
 
                 return True, parsed_data
             except:
@@ -1157,6 +1172,8 @@ def test_summarization_utilities():
         is_valid, parsed = validator._validate_summary_response(response)
         status = "✅ Valid" if is_valid else "❌ Invalid"
         print(f"    Test {i}: {status}")
+        if is_valid:
+            print(f"      → Fields: {list(parsed.keys())}")
 
     print("   ✅ Validation working")
 
@@ -1173,7 +1190,7 @@ if __name__ == "__main__":
         elif sys.argv[1] in ["--defaults", "-d"]:
             display_default_summarization_prompts()
         elif sys.argv[1] in ["--help", "-h"]:
-            print("Paper Summarization Utilities")
+            print("Simplified Paper Summarization Utilities")
             print("Usage:")
             print("  python summarize_utils.py --test       # Run mock tests")
             print("  python summarize_utils.py --defaults   # Show default prompts")
@@ -1181,5 +1198,5 @@ if __name__ == "__main__":
         else:
             print("Unknown option. Use --help for usage information.")
     else:
-        print("Paper Summarization Utilities Module")
+        print("Simplified Paper Summarization Utilities Module")
         print("Run with --help for usage options")
