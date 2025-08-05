@@ -1067,6 +1067,78 @@ def validate_scoring_config(config: Dict) -> List[str]:
     return errors  # Only return blocking errors
 
 
+def validate_rescoring_config(config: Dict) -> List[str]:
+    """
+    Validate the rescoring configuration.
+
+    Args:
+        config: Configuration dictionary
+
+    Returns:
+        List of validation error messages (empty if valid)
+    """
+    errors = []
+
+    rescoring_config = config.get("rescoring", {})
+    scoring_config = config.get("scoring", {})
+
+    # Check required parameters
+    model_alias = rescoring_config.get("model_alias")
+    if not model_alias:
+        errors.append("model_alias is required in rescoring configuration")
+
+    # Validate retry attempts
+    retry_attempts = rescoring_config.get("retry_attempts", 2)
+    if not isinstance(retry_attempts, int) or retry_attempts < 0:
+        errors.append("retry_attempts must be a non-negative integer")
+
+    # Validate include_metadata
+    include_metadata = rescoring_config.get("include_metadata", [])
+    if not include_metadata:
+        errors.append("include_metadata cannot be empty")
+
+    valid_metadata_fields = {
+        "title",
+        "abstract",
+        "authors",
+        "categories",
+        "published",
+        "updated",
+        "llm_summary",
+        "summary_key_contributions",
+        "summary_confidence",
+        "llm_score",
+    }
+    for field in include_metadata:
+        if field not in valid_metadata_fields:
+            errors.append(f"Invalid metadata field: {field}")
+
+    # Validate batch_size
+    batch_size = rescoring_config.get("batch_size")
+    if batch_size is not None:
+        if not isinstance(batch_size, int) or batch_size < 1:
+            errors.append("batch_size must be a positive integer or null")
+
+    # Check that we can inherit prompts if they're null
+    inheritable_prompts = [
+        "research_context_prompt",
+        "scoring_strategy_prompt",
+        "score_calculation_prompt",
+    ]
+
+    for prompt_name in inheritable_prompts:
+        rescoring_value = rescoring_config.get(prompt_name)
+        scoring_value = scoring_config.get(prompt_name)
+
+        # If rescoring prompt is null, check that scoring has a value
+        if rescoring_value is None and not scoring_value:
+            errors.append(
+                f"{prompt_name} is null in rescoring config but no fallback found in scoring config"
+            )
+
+    return errors
+
+
 def test_scoring_utilities():
     """
     Test function to validate scoring utilities without making API calls.
@@ -1685,6 +1757,208 @@ def create_test_configurations() -> Dict[str, Dict]:
     }
 
 
+def test_rescoring_configuration():
+    """Test rescoring configuration validation with various scenarios."""
+    print("=== TESTING RESCORING CONFIGURATION ===")
+
+    # Test configuration scenarios
+    test_configs = {
+        "valid_with_inheritance": {
+            "scoring": {
+                "model_alias": "test-model",
+                "research_context_prompt": "Original context",
+                "scoring_strategy_prompt": "Original strategy",
+                "score_calculation_prompt": "Original calculation",
+            },
+            "rescoring": {
+                "model_alias": "test-model",
+                "include_metadata": ["title", "abstract", "llm_summary"],
+                "research_context_prompt": None,  # Inherit
+                "scoring_strategy_prompt": "New strategy",  # Override
+                "score_calculation_prompt": None,  # Inherit
+            },
+        },
+        "valid_full_override": {
+            "scoring": {
+                "model_alias": "test-model",
+                "research_context_prompt": "Original context",
+            },
+            "rescoring": {
+                "model_alias": "test-model",
+                "include_metadata": [
+                    "title",
+                    "llm_summary",
+                    "summary_key_contributions",
+                ],
+                "research_context_prompt": "New context",
+                "scoring_strategy_prompt": "New strategy",
+                "score_calculation_prompt": "New calculation",
+            },
+        },
+        "invalid_missing_model": {
+            "rescoring": {"include_metadata": ["title", "abstract"]}
+        },
+        "invalid_bad_inheritance": {
+            "scoring": {},  # No prompts to inherit from
+            "rescoring": {
+                "model_alias": "test-model",
+                "include_metadata": ["title"],
+                "research_context_prompt": None,  # Can't inherit - nothing there
+            },
+        },
+        "invalid_metadata": {
+            "rescoring": {
+                "model_alias": "test-model",
+                "include_metadata": ["invalid_field"],
+            }
+        },
+    }
+
+    for config_name, config in test_configs.items():
+        print(f"\nTesting {config_name}:")
+        validation_errors = validate_rescoring_config(config)
+
+        if config_name.startswith("invalid"):
+            if validation_errors:
+                print(f"   ✅ Correctly identified errors: {len(validation_errors)}")
+                for error in validation_errors[:2]:  # Show first 2 errors
+                    print(f"      - {error}")
+            else:
+                print(f"   ❌ Should have found validation errors")
+        else:
+            if not validation_errors:
+                print(f"   ✅ Valid configuration passed")
+            else:
+                print(f"   ❌ Unexpected validation errors:")
+                for error in validation_errors:
+                    print(f"      - {error}")
+
+    print(f"\n=== RESCORING CONFIGURATION TEST COMPLETE ===")
+
+
+def test_rescoring_workflow():
+    """Test the rescoring workflow with mock data."""
+    print("=== TESTING RESCORING WORKFLOW ===")
+
+    # Create mock summarized papers
+    mock_papers = [
+        {
+            "id": "2501.12345v1",
+            "title": "Novel Deep Learning Architecture for Scientific Discovery",
+            "abstract": "We present a novel neural architecture...",
+            "llm_score": 7.2,
+            "llm_explanation": "Strong methodological contribution",
+            "llm_summary": """
+## CORE CONTRIBUTION
+This paper introduces a transformer-based architecture specifically designed for scientific discovery tasks, incorporating domain-specific attention mechanisms and uncertainty quantification.
+
+## METHODOLOGY  
+The approach combines multi-head attention with graph neural networks, using a novel attention mechanism that incorporates scientific priors. The model is trained on diverse scientific datasets with a custom loss function.
+
+## RESULTS
+Evaluation on 5 scientific domains shows 15-30% improvement over baselines. Statistical significance confirmed through extensive ablation studies and cross-validation.
+
+## IMPLICATIONS
+This work opens new directions for AI-assisted scientific discovery and provides a general framework applicable across scientific domains.
+            """,
+            "summary_key_contributions": [
+                "Novel transformer architecture for scientific discovery",
+                "Domain-specific attention mechanisms",
+                "15-30% improvement over baselines",
+            ],
+            "summary_confidence": 0.9,
+        },
+        {
+            "id": "2501.12346v1",
+            "title": "Statistical Methods for Large-Scale Survey Analysis",
+            "abstract": "This work presents statistical methods...",
+            "llm_score": 6.5,
+            "llm_explanation": "Solid statistical contribution",
+            "llm_summary": """
+## CORE CONTRIBUTION
+Development of robust statistical methods for handling selection effects and systematic uncertainties in large astronomical surveys.
+
+## METHODOLOGY
+Uses hierarchical Bayesian modeling with MCMC sampling. Introduces novel priors for handling missing data and selection biases.
+
+## RESULTS  
+Applied to SDSS data, shows improved parameter estimation accuracy. Reduces systematic biases by 40% compared to standard methods.
+
+## IMPLICATIONS
+Critical for next-generation surveys like LSST. Methods are generalizable to other large-scale scientific surveys.
+            """,
+            "summary_key_contributions": [
+                "Hierarchical Bayesian methods for survey data",
+                "Novel priors for selection effects",
+                "40% reduction in systematic biases",
+            ],
+            "summary_confidence": 0.8,
+        },
+    ]
+
+    print(f"Created {len(mock_papers)} mock papers with summaries")
+
+    # Test configuration for rescoring
+    test_config = {
+        "scoring": {
+            "research_context_prompt": "Original research context for testing",
+            "scoring_strategy_prompt": "Original scoring strategy",
+            "score_calculation_prompt": "Original score calculation",
+        },
+        "rescoring": {
+            "model_alias": "test-model",
+            "include_metadata": [
+                "title",
+                "abstract",
+                "llm_summary",
+                "summary_key_contributions",
+            ],
+            "batch_size": 2,
+            "retry_attempts": 1,
+            "research_context_prompt": None,  # Should inherit
+            "scoring_strategy_prompt": "Enhanced scoring strategy for full content",
+            "score_calculation_prompt": None,  # Should inherit
+        },
+    }
+
+    # Validate configuration
+    validation_errors = validate_rescoring_config(test_config)
+    if validation_errors:
+        print(f"❌ Configuration validation failed:")
+        for error in validation_errors:
+            print(f"   - {error}")
+        return
+
+    print(f"✅ Configuration validation passed")
+
+    # Test prompt inheritance logic (simplified version)
+    rescoring_config = test_config["rescoring"].copy()
+    scoring_config = test_config["scoring"]
+
+    inheritable_prompts = [
+        "research_context_prompt",
+        "scoring_strategy_prompt",
+        "score_calculation_prompt",
+    ]
+    inherited_count = 0
+
+    for prompt_name in inheritable_prompts:
+        if rescoring_config.get(prompt_name) is None:
+            inherited_value = scoring_config.get(prompt_name)
+            if inherited_value:
+                rescoring_config[prompt_name] = inherited_value
+                inherited_count += 1
+                print(f"✅ Inherited {prompt_name}")
+
+    print(f"✅ Prompt inheritance working: {inherited_count} prompts inherited")
+
+    # Test metadata extraction would happen here
+    # (This would use the existing ScoringEngine._extract_paper_content method)
+
+    print(f"✅ Mock rescoring workflow test completed")
+    print(f"Next step: Run real rescoring with actual summarized papers")
+
+
 # Example usage and testing
 if __name__ == "__main__":
     import sys
@@ -1698,6 +1972,9 @@ if __name__ == "__main__":
             test_real_configuration(test_api_call=True, test_batching=False)
         elif sys.argv[1] in ["--test-batch", "--batch", "-b"]:
             test_real_configuration(test_api_call=True, test_batching=True)
+        elif sys.argv[1] in ["--test-rescore", "--rescore", "-rs"]:
+            test_rescoring_configuration()
+            test_rescoring_workflow()
         elif sys.argv[1] in ["--defaults", "-d"]:
             display_default_prompts()
         elif sys.argv[1] in ["--configs", "-c"]:
@@ -1718,6 +1995,9 @@ if __name__ == "__main__":
             print(
                 "  python score_utils.py --test-batch    # Test real configs + API + batching"
             )
+            print(
+                "  python score_utils.py --test-rescore  # Test rescoring configuration"
+            )
             print("  python score_utils.py --defaults      # Show default prompts")
             print("  python score_utils.py --configs       # Show test configurations")
             print("  python score_utils.py --help          # Show this help")
@@ -1726,4 +2006,4 @@ if __name__ == "__main__":
     else:
         print("Scoring Utilities Module")
         print("Run with --help for usage options")
-        print("Add --batch to any test command to include batching tests")
+        print("Add --rescore to test rescoring functionality")

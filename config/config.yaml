@@ -70,8 +70,8 @@ scoring:
   include_metadata:
     - title
     - abstract
-    # - authors      # Uncomment to include author information
-    # - categories   # Uncomment to include arXiv categories
+    # - authors
+    # - categories
 
   # Three-part prompt configuration for scoring
   # Part 1: Research context - describe the researcher's background and interests
@@ -272,3 +272,40 @@ summarization:
     Do not attempt to reproduce mathematical equations or complex formulas.
     Instead, describe them concisely (e.g., "uses a modified loss function that combines...").
     Avoid verbose explanations and focus on the most important insights.
+
+# LLM-based Paper Re-scoring Settings (Re-scoring with full summaries)
+rescoring:
+  # Input file (null = auto-detect most recent summarization_results_*.json)
+  input_file: null
+
+  # Model configuration (must be defined in config/llm.yaml)
+  model_alias: "deepseek-r1-qwen3"
+
+  # Limit number of papers to rescore (null = rescore all papers)
+  max_papers: null
+
+  # Batch size for rescoring (number of papers per LLM request, null = single paper per request)
+  batch_size: null
+
+  # Retry configuration
+  retry_attempts: 2
+
+  # Metadata fields to include when rescoring papers
+  include_metadata:
+    - title
+    - abstract
+    - llm_summary # Include the full LLM-generated summary
+    - summary_confidence # Confidence score of the summary
+    # - llm_score # Original LLM score
+    # - authors
+    # - categories
+
+  # Three-part prompt configuration for rescoring
+  # Part 1: Research context (null = inherit from scoring.research_context_prompt)
+  research_context_prompt: null
+
+  # Part 2: Scoring strategy (null = inherit from scoring.scoring_strategy_prompt)
+  scoring_strategy_prompt: null
+
+  # Part 3: Score calculation (null = inherit from scoring.score_calculation_prompt)
+  score_calculation_prompt: null
