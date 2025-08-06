@@ -15,7 +15,7 @@ This workflow processes arXiv papers through several stages:
 5. **Re-score** based on summaries (via LLM)
 6. **Synthesize** comprehensive digest of top-scoring papers
 
-There is also an option to convert the digest into a podcast-style audio file.
+There is also an option to convert the digest into a podcast-style **audio file**.
 
 ## Quick Start
 
@@ -47,8 +47,7 @@ python src/rescore_papers.py  # rescore papers using summaries (with LLM)
 python src/synthesize_papers.py  # subselect papers and synthesize report (with LLM)
 python src/create_audio_script.py  # convert report to audio script (with LLM)
 
-# Run workflow (integrated)
-...
+python src/generate_audio.py  # convert script to audio file with TTS
 ```
 
 ## Configuration
