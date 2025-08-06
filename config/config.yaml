@@ -324,8 +324,8 @@ synthesis:
     percentile: 35
     score_threshold: 7.5
     min_papers: 3
-    max_papers: 8
-    n_random: 2
+    max_papers: 12
+    n_random: 3
     temperature: 0.5
 
   # Report generation
@@ -346,29 +346,65 @@ synthesis:
       - rescored_llm_score
       - rescored_llm_explanation
 
-    # Two-part prompt configuration for synthesis
+    # Three-part prompt configuration for synthesis
     # Part 1: Research context (null = inherit from scoring.research_context_prompt)
-    research_context_prompt: null # Inherit from scoring config
+    research_context_prompt: |
+      You are writing a daily research digest for an interdisciplinary expert who uses this to stay
+      current with relevant developments. The reader works on "statistical AI for cosmic discovery", 
+      focusing on novel AI/ML/statistics methods, interpretable approaches, and robust inference frameworks, 
+      as well as scientific applications to astronomical surveys with a focus on galaxy evolution.
 
     # Part 2: Synthesis strategy for final report
-    report_prompt: |
-      Create a comprehensive research synthesis (1500-2000 words) that organizes the selected papers into coherent themes and insights.
+    content_synthesis_prompt: |
+      Extract and organize the key information from the selected papers. 
+      Focus on content accuracy and connections - formatting will be handled separately.
 
-      Guidelines:
-      - Use rescored scores to guide the depth of discussion and emphasis for each paper
-      - Organize by conceptual themes and methodological approaches, not just by score ranking
-      - Identify connections, trends, and complementary approaches across papers
-      - Include practical implications and future research directions
-      - Maintain technical accuracy while being accessible to an expert audience
+      For each paper, identify:
+      - Authors and core contribution
+      - Key findings with specific results/numbers
+      - Methodological innovations
+      - Confidence levels or limitations noted
 
-      Structure suggestions (adapt based on the specific papers):
-      - Executive summary of key themes
-      - Thematic sections grouping related papers
-      - Methodological insights and innovations
-      - Research implications and future directions
+      Then organize into 2-3 thematic groups based on:
+      - Shared methods or approaches
+      - Complementary findings
+      - Related problem domains
+      - Contrasting results or approaches
 
-      For each paper discussed, include: title, authors, key contributions, and relevance to the broader themes.
-      Use the provided scores to emphasize the most significant contributions.
+      Output as structured content with:
+      - Brief theme descriptions
+      - Paper summaries under each theme
+      - Notable connections between papers
+      - Key quantitative results
+      - Any tensions or disagreements
+
+      Do not worry about narrative flow, style, or final formatting.
+
+    # Part 3: Final report style and formatting
+    # This will be applied after synthesis to create the final report
+    style_formatting_prompt: |
+      Transform the structured content into a polished daily research digest (800-1200 words).
+
+      **Required Style:**
+      - Expert-to-expert voice, conversational but authoritative
+      - Essay format with smooth transitions
+      - Begin directly with substantive content
+      - Complete in one continuous narrative - no restarts or section breaks
+      - Use author names, never paper numbers
+
+      **Formatting:**
+      - Bold key terms, methods, and quantitative results
+      - Markdown formatting but avoid excessive styling
+      - Natural transitions between themes
+      - Precise technical language with appropriate skepticism
+
+      **Content Preservation:**
+      - Maintain all specific results and findings from the input
+      - Preserve author attributions
+      - Keep technical accuracy
+      - Include confidence levels and limitations
+
+      Generate an informative title capturing the key theme or development.
 
     # Example alternative format (commented out for reference)
     # podcast_prompt: |

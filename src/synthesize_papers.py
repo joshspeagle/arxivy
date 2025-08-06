@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-ArXiv Paper Synthesis with LLMs
+ArXiv Paper Synthesis with LLMs - Two-Stage Implementation
 
-Synthesizes selected papers into comprehensive reports using configurable LLM models.
-Integrates paper selection with theme-based synthesis for final research summaries.
+Synthesizes selected papers into comprehensive reports using a two-stage LLM approach:
+Stage 1: Content synthesis and organization
+Stage 2: Style formatting and narrative flow
 
 Dependencies:
     pip install openai anthropic google-generativeai pyyaml numpy
@@ -77,20 +78,20 @@ class OutputFormatter:
         return f"Score range: {min(scores):.1f} - {max(scores):.1f}, avg: {sum(scores)/len(scores):.1f}"
 
 
-class SynthesisWorkflow:
+class TwoStageSynthesisWorkflow:
     """
-    Main class for the paper synthesis workflow.
+    Main class for the two-stage paper synthesis workflow.
 
     Orchestrates:
     1. Loading rescored papers with full summaries
     2. Paper selection using sophisticated algorithms
-    3. LLM-based synthesis into comprehensive reports
+    3. Two-stage LLM synthesis (content + style) into comprehensive reports
     4. Results compilation and storage
     """
 
     def __init__(self, config: Dict):
         """
-        Initialize the synthesis workflow.
+        Initialize the two-stage synthesis workflow.
 
         Args:
             config: Configuration dictionary loaded from YAML
@@ -259,7 +260,7 @@ class SynthesisWorkflow:
 
     def synthesize_papers(self, papers: List[Dict]) -> Dict:
         """
-        Synthesize papers into a comprehensive report.
+        Synthesize papers using the two-stage approach.
 
         Args:
             papers: List of selected papers
@@ -270,9 +271,9 @@ class SynthesisWorkflow:
         if not papers:
             raise RuntimeError("No papers provided for synthesis")
 
-        print(f"\nSYNTHESIZING {len(papers)} PAPERS...")
+        print(f"\nSTARTING TWO-STAGE SYNTHESIS OF {len(papers)} PAPERS...")
 
-        # Synthesize papers
+        # Run two-stage synthesis
         synthesis_result = self.synthesizer.synthesize_papers(papers)
 
         # Store synthesis results
@@ -283,49 +284,61 @@ class SynthesisWorkflow:
             synthesis_time = synthesis_result.get("synthesis_time", 0)
             report_length = len(synthesis_result.get("synthesis_report", ""))
             print(
-                f"✅ Synthesis completed in {synthesis_time:.1f}s ({report_length:,} characters)"
+                f"✅ Two-stage synthesis completed in {synthesis_time:.1f}s ({report_length:,} characters)"
             )
+
+            # Show stage completion info
+            stage1_length = len(synthesis_result.get("stage1_content", ""))
+            print(f"   Stage 1 (content): {stage1_length:,} characters")
+            print(f"   Stage 2 (style): {report_length:,} characters")
         else:
             error = synthesis_result.get("error", "Unknown error")
-            print(f"❌ Synthesis failed: {error}")
+            print(f"❌ Two-stage synthesis failed: {error}")
+
+            # Show partial results if available
+            if synthesis_result.get("stage1_content"):
+                stage1_length = len(synthesis_result["stage1_content"])
+                print(f"   Stage 1 completed: {stage1_length:,} characters")
 
         return synthesis_result
 
     def create_synthesis_metadata(self) -> Dict:
-        """Create minimal metadata for synthesis results."""
+        """Create metadata for two-stage synthesis results."""
         return {
             "synthesis_timestamp": datetime.now().isoformat(),
             "model_used": self.model_alias,
+            "synthesis_approach": "two_stage",
             "total_papers_loaded": len(self.papers),
             "papers_selected": len(self.selected_papers),
             "synthesis_success": self.synthesis_result.get("synthesis_success", False),
             "synthesis_time": self.synthesis_result.get("synthesis_time", 0),
+            "stage1_completed": self.synthesis_result.get("stage1_content") is not None,
+            "stage2_completed": self.synthesis_result.get("synthesis_success", False),
         }
 
-    def save_synthesis_results(self) -> Tuple[str, Optional[str]]:
+    def save_synthesis_results(self) -> Tuple[str, Optional[str], Optional[str]]:
         """
-        Save synthesis results to files.
+        Save two-stage synthesis results to files.
 
         Returns:
-            Tuple of (results_path, report_path) where report_path may be None if synthesis failed
+            Tuple of (results_path, report_path, stage1_path) where paths may be None if content unavailable
         """
         output_dir = self.config.get("output", {}).get("base_dir", "./data")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # Create streamlined results (avoid duplication)
+        # Create streamlined results
         synthesis_metadata = self.create_synthesis_metadata()
 
-        # Only include essential data to avoid bloat
+        # Enhanced results for two-stage approach
         streamlined_results = {
             **synthesis_metadata,
             "synthesis_report": self.synthesis_result.get("synthesis_report"),
-            "synthesis_confidence": self.synthesis_result.get("synthesis_confidence"),
+            "stage1_content": self.synthesis_result.get("stage1_content"),
             "papers_metadata": [
                 {
                     "id": p.get("id"),
                     "title": p.get("title"),
                     "score": p.get(self.formatter.score_field),
-                    # Include only essential fields, not full paper content
                 }
                 for p in self.selected_papers
             ],
@@ -339,10 +352,11 @@ class SynthesisWorkflow:
             "config_used": {
                 "model_alias": self.model_alias,
                 "score_field": self.formatter.score_field,
+                "synthesis_approach": "two_stage",
             },
         }
 
-        # Save streamlined results
+        # Save comprehensive results
         results_path = os.path.join(output_dir, f"synthesis_results_{timestamp}.json")
 
         try:
@@ -353,7 +367,7 @@ class SynthesisWorkflow:
         except Exception as e:
             raise RuntimeError(f"Failed to save synthesis results: {e}")
 
-        # Save standalone report only if synthesis was successful
+        # Save standalone final report if synthesis was successful
         report_path = None
         if self.synthesis_result.get("synthesis_success") and self.synthesis_result.get(
             "synthesis_report"
@@ -361,25 +375,43 @@ class SynthesisWorkflow:
             report_path = os.path.join(output_dir, f"synthesis_report_{timestamp}.md")
             try:
                 with open(report_path, "w", encoding="utf-8") as f:
-                    # Create a clean report without redundant metadata
                     f.write(f"# Research Synthesis Report\n\n")
                     f.write(
-                        f"*Generated on {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}*\n\n"
+                        f"*Generated on {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')} using two-stage synthesis*\n\n"
                     )
                     f.write(f"**Papers Analyzed:** {len(self.selected_papers)} | ")
                     f.write(f"**Model:** {self.model_alias}\n\n")
                     f.write("---\n\n")
                     f.write(self.synthesis_result["synthesis_report"])
-                print(f"Saved synthesis report: {report_path}")
+                print(f"Saved final report: {report_path}")
             except Exception as e:
-                print(f"Warning: Could not save standalone report: {e}")
+                print(f"Warning: Could not save final report: {e}")
 
-        return results_path, report_path
+        # Save Stage 1 content for reference/debugging
+        stage1_path = None
+        if self.synthesis_result.get("stage1_content"):
+            stage1_path = os.path.join(output_dir, f"synthesis_stage1_{timestamp}.md")
+            try:
+                with open(stage1_path, "w", encoding="utf-8") as f:
+                    f.write(f"# Synthesis Stage 1: Content Organization\n\n")
+                    f.write(
+                        f"*Generated on {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}*\n\n"
+                    )
+                    f.write(
+                        "This is the structured content from Stage 1 before style formatting.\n\n"
+                    )
+                    f.write("---\n\n")
+                    f.write(self.synthesis_result["stage1_content"])
+                print(f"Saved Stage 1 content: {stage1_path}")
+            except Exception as e:
+                print(f"Warning: Could not save Stage 1 content: {e}")
+
+        return results_path, report_path, stage1_path
 
     def print_final_summary(self):
-        """Print a concise final summary without repetition."""
+        """Print a concise final summary for two-stage synthesis."""
         print(f"\n" + "=" * 50)
-        print("SYNTHESIS WORKFLOW COMPLETE")
+        print("TWO-STAGE SYNTHESIS WORKFLOW COMPLETE")
         print("=" * 50)
 
         # Single summary with all key information
@@ -388,7 +420,13 @@ class SynthesisWorkflow:
         )
 
         if self.synthesis_result.get("synthesis_success"):
-            print(f"✅ Synthesis successful")
+            print(f"✅ Two-stage synthesis successful")
+
+            # Show stage-specific info
+            stage1_length = len(self.synthesis_result.get("stage1_content", ""))
+            stage2_length = len(self.synthesis_result.get("synthesis_report", ""))
+            print(f"   Stage 1 (content synthesis): {stage1_length:,} chars")
+            print(f"   Stage 2 (style formatting): {stage2_length:,} chars")
 
             # Show only top 3 papers to avoid repetition
             if self.selected_papers:
@@ -400,16 +438,22 @@ class SynthesisWorkflow:
                     print(line)
         else:
             print(
-                f"❌ Synthesis failed: {self.synthesis_result.get('error', 'Unknown error')}"
+                f"❌ Two-stage synthesis failed: {self.synthesis_result.get('error', 'Unknown error')}"
             )
+
+            # Show which stage failed
+            if self.synthesis_result.get("stage1_content"):
+                print(f"   Stage 1 completed, Stage 2 failed")
+            else:
+                print(f"   Stage 1 failed")
 
     def run(self):
         """
-        Run the complete synthesis workflow with streamlined output.
+        Run the complete two-stage synthesis workflow.
         """
         try:
-            print("Paper Synthesis Workflow")
-            print("========================")
+            print("Two-Stage Paper Synthesis Workflow")
+            print("==================================")
 
             # Setup and load papers
             self.setup_input_files()
@@ -422,11 +466,11 @@ class SynthesisWorkflow:
                 print("No papers selected for synthesis.")
                 return
 
-            # Synthesize papers
+            # Run two-stage synthesis
             synthesis_result = self.synthesize_papers(self.selected_papers)
 
             # Save results
-            results_path, report_path = self.save_synthesis_results()
+            results_path, report_path, stage1_path = self.save_synthesis_results()
 
             # Print concise final summary
             self.print_final_summary()
@@ -436,14 +480,18 @@ class SynthesisWorkflow:
                 print(f"\nFiles saved:")
                 print(f"  Results: {results_path}")
                 if report_path:
-                    print(f"  Report:  {report_path}")
+                    print(f"  Final Report: {report_path}")
+                if stage1_path:
+                    print(f"  Stage 1 Content: {stage1_path}")
             else:
                 print(f"\nTroubleshooting:")
                 print(f"  1. Check synthesis configuration")
                 print(f"  2. Verify selected papers have required metadata")
+                if stage1_path:
+                    print(f"  3. Review Stage 1 output: {stage1_path}")
 
         except Exception as e:
-            print(f"Error during synthesis workflow: {e}")
+            print(f"Error during two-stage synthesis workflow: {e}")
             import traceback
 
             traceback.print_exc()
@@ -471,7 +519,7 @@ def load_config(config_path: str = "config/config.yaml") -> Dict:
 
 def validate_synthesis_workflow_config(config: Dict) -> List[str]:
     """
-    Validate the complete synthesis workflow configuration.
+    Validate the complete two-stage synthesis workflow configuration.
 
     Args:
         config: Configuration dictionary
@@ -493,8 +541,8 @@ def validate_synthesis_workflow_config(config: Dict) -> List[str]:
 
 
 def test_synthesis_setup():
-    """Test the synthesis setup and configuration."""
-    print("=== TESTING SYNTHESIS WORKFLOW SETUP ===")
+    """Test the two-stage synthesis setup and configuration."""
+    print("=== TESTING TWO-STAGE SYNTHESIS WORKFLOW SETUP ===")
 
     # Test 1: Load configuration
     print("\n1. Testing configuration loading...")
@@ -518,16 +566,16 @@ def test_synthesis_setup():
         return 1
 
     # Test 2: Validate synthesis configuration
-    print("\n2. Testing synthesis configuration validation...")
+    print("\n2. Testing two-stage synthesis configuration validation...")
     try:
         validation_errors = validate_synthesis_workflow_config(config)
         if validation_errors:
-            print("❌ Synthesis configuration validation errors:")
+            print("❌ Two-stage synthesis configuration validation errors:")
             for error in validation_errors:
                 print(f"   - {error}")
             return 1
         else:
-            print("✅ Synthesis configuration validation passed")
+            print("✅ Two-stage synthesis configuration validation passed")
     except Exception as e:
         print(f"❌ Error during validation: {e}")
         return 1
@@ -593,11 +641,11 @@ def test_synthesis_setup():
         print(f"❌ Error checking input files: {e}")
         return 1
 
-    print(f"\n=== SYNTHESIS SETUP TEST COMPLETE ===")
+    print(f"\n=== TWO-STAGE SYNTHESIS SETUP TEST COMPLETE ===")
 
     # Check if we're ready for synthesis
     if rescored_files:
-        print(f"\n✅ Ready to run synthesis!")
+        print(f"\n✅ Ready to run two-stage synthesis!")
         print(f"   Execute: python src/synthesize_papers.py")
     else:
         print(f"\n❌ Complete the workflow first, then run synthesis")
@@ -606,9 +654,9 @@ def test_synthesis_setup():
 
 
 def main():
-    """Main function to run the synthesis workflow."""
-    print("ArXiv Paper Synthesis with LLMs")
-    print("===============================")
+    """Main function to run the two-stage synthesis workflow."""
+    print("ArXiv Paper Synthesis with Two-Stage LLMs")
+    print("=========================================")
 
     # Handle command line arguments
     if len(sys.argv) > 1:
@@ -616,7 +664,9 @@ def main():
             return test_synthesis_setup()
         elif sys.argv[1] in ["--help", "-h"]:
             print("Usage:")
-            print("  python synthesize_papers.py          # Run synthesis workflow")
+            print(
+                "  python synthesize_papers.py          # Run two-stage synthesis workflow"
+            )
             print("  python synthesize_papers.py --test   # Test synthesis setup")
             print("  python synthesize_papers.py --help   # Show this help")
             return 0
@@ -643,17 +693,18 @@ def main():
     print(
         f"Configuration: {synthesis_config.get('model_alias', 'not specified')} | "
         f"Score field: {selection_config.get('score_field', 'rescored_llm_score')} | "
-        f"Selection: top {selection_config.get('percentile', 'not set')}% with score ≥ {selection_config.get('score_threshold', 'not set')}"
+        f"Selection: top {selection_config.get('percentile', 'not set')}% with score ≥ {selection_config.get('score_threshold', 'not set')} | "
+        f"Two-stage synthesis"
     )
 
-    # Create and run synthesis workflow
+    # Create and run two-stage synthesis workflow
     try:
-        workflow = SynthesisWorkflow(config)
+        workflow = TwoStageSynthesisWorkflow(config)
         workflow.run()
         return 0
 
     except Exception as e:
-        print(f"Synthesis workflow failed: {e}")
+        print(f"Two-stage synthesis workflow failed: {e}")
         return 1
 
 

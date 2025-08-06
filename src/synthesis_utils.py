@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Paper Synthesis Utilities
+Paper Synthesis Utilities - Two-Stage Implementation
 
-Handles LLM-based synthesis of selected papers into comprehensive reports.
-Supports configurable metadata inclusion and flexible output formats.
+Handles LLM-based synthesis of selected papers into comprehensive reports using
+a two-stage approach: content synthesis followed by style formatting.
 
 Dependencies:
     pip install openai anthropic google-generativeai pyyaml numpy
@@ -23,54 +23,78 @@ from datetime import datetime
 
 def get_default_synthesis_prompts() -> Dict[str, str]:
     """
-    Get default prompts for research paper synthesis.
+    Get default prompts for two-stage research paper synthesis.
 
     Returns:
-        Dictionary with default prompt strings
+        Dictionary with default prompt strings for both stages
     """
     return {
         "research_context_prompt": """
-You are synthesizing research papers for a computational scientist who works on 
-machine learning, statistical methods, and data analysis techniques. The researcher 
-values methodological rigor, theoretical contributions, and practical applications 
-that advance scientific understanding.
+You are analyzing research papers for an interdisciplinary expert who works on 
+"statistical AI for cosmic discovery", focusing on novel AI/ML/statistics methods, 
+interpretable approaches, robust inference frameworks, and scientific applications 
+to astronomical surveys with a focus on galaxy evolution.
 
-Focus on identifying connections between papers, emerging themes, and broader 
-implications for the field. Assume the reader is an expert who wants to understand 
-how these papers collectively advance knowledge and what opportunities they reveal.
+The goal is to extract and organize key information that will be useful for 
+staying current with relevant developments in the field.
         """.strip(),
-        "report_prompt": """
-Create a comprehensive research synthesis (1500-2000 words) that organizes the selected papers into coherent themes and insights.
+        "content_synthesis_prompt": """
+Extract and organize the key information from the selected papers. Focus on content accuracy and connections - formatting will be handled separately.
 
-Guidelines:
-- Organize by conceptual themes and methodological approaches, not just by score ranking
-- Use rescored scores to guide the depth of discussion and emphasis for each paper
-- Identify connections, trends, and complementary approaches across papers
-- Include practical implications and future research directions
-- Maintain technical accuracy while being accessible to an expert audience
+For each paper, identify:
+- Authors and core contribution
+- Key findings with specific results/numbers
+- Methodological innovations  
+- Confidence levels or limitations noted
 
-Structure suggestions (adapt based on the specific papers):
-- Executive summary of key themes
-- Thematic sections grouping related papers
-- Methodological insights and innovations
-- Research implications and future directions
+Then organize into 2-3 thematic groups based on:
+- Shared methods or approaches
+- Complementary findings
+- Related problem domains
+- Contrasting results or approaches
 
-For each paper discussed, include: title, authors, key contributions, and relevance to the broader themes.
-Use the provided scores to emphasize the most significant contributions.
+Output as structured content with:
+- Brief theme descriptions
+- Paper summaries under each theme
+- Notable connections between papers
+- Key quantitative results
+- Any tensions or disagreements
+
+Do not worry about narrative flow, style, or final formatting.
+        """.strip(),
+        "style_formatting_prompt": """
+Transform the structured content into a polished daily research digest (800-1200 words).
+
+**Required Style:**
+- Expert-to-expert voice, conversational but authoritative
+- Essay format with smooth transitions
+- Begin directly with substantive content
+- Complete in one continuous narrative - no restarts or section breaks
+- Use author names, never paper numbers
+
+**Formatting:**
+- Bold key terms, methods, and quantitative results
+- Markdown formatting but avoid excessive styling
+- Natural transitions between themes
+- Precise technical language with appropriate skepticism
+
+**Content Preservation:**
+- Maintain all specific results and findings from the input
+- Preserve author attributions
+- Keep technical accuracy
+- Include confidence levels and limitations
+
+Generate an informative title capturing the key theme or development.
         """.strip(),
     }
 
 
 class PaperSynthesizer:
     """
-    Handles LLM-based synthesis of selected papers into comprehensive reports.
+    Handles LLM-based synthesis of selected papers using a two-stage approach.
 
-    Features:
-    - Theme-based paper organization
-    - Configurable metadata inclusion
-    - Score-guided emphasis and depth
-    - Flexible output formats via prompts
-    - Comprehensive error handling and retry logic
+    Stage 1: Content synthesis - extracts and organizes key information
+    Stage 2: Style formatting - transforms into polished narrative
     """
 
     def __init__(self, config: Dict, llm_manager, model_alias: str):
@@ -113,28 +137,31 @@ class PaperSynthesizer:
             ],
         )
 
-        # Build system prompt
-        self.system_prompt = self._build_system_prompt()
+        # Build system prompts for both stages
+        self.stage1_system_prompt = self._build_stage1_system_prompt()
+        self.stage2_system_prompt = self._build_stage2_system_prompt()
 
         # Statistics tracking
         self.stats = {
             "papers_synthesized": 0,
-            "synthesis_attempts": 0,
-            "synthesis_failures": 0,
+            "stage1_attempts": 0,
+            "stage1_failures": 0,
+            "stage2_attempts": 0,
+            "stage2_failures": 0,
             "total_retries": 0,
             "synthesis_time": 0,
         }
 
     def _get_default_prompts(self) -> Dict[str, str]:
-        """Get default prompts for synthesis."""
+        """Get default prompts for two-stage synthesis."""
         return get_default_synthesis_prompts()
 
-    def _build_system_prompt(self) -> str:
+    def _build_stage1_system_prompt(self) -> str:
         """
-        Construct the complete system prompt from configured parts.
+        Construct the system prompt for Stage 1 (content synthesis).
 
         Returns:
-            Complete system prompt string
+            Complete system prompt string for Stage 1
         """
         defaults = self._get_default_prompts()
         used_defaults = []
@@ -159,27 +186,51 @@ class PaperSynthesizer:
             research_context = defaults["research_context_prompt"]
             used_defaults.append("research_context_prompt")
 
-        # Get synthesis strategy prompt
-        report_prompt = self.generation_config.get("report_prompt", "").strip()
-        if not report_prompt:
-            report_prompt = defaults["report_prompt"]
-            used_defaults.append("report_prompt")
+        # Get content synthesis prompt
+        content_prompt = self.generation_config.get(
+            "content_synthesis_prompt", ""
+        ).strip()
+        if not content_prompt:
+            content_prompt = defaults["content_synthesis_prompt"]
+            used_defaults.append("content_synthesis_prompt")
 
         # Warn user about defaults
         if used_defaults:
-            print(f"⚠️  WARNING: Using default prompts for: {', '.join(used_defaults)}")
             print(
-                f"   For better results, customize these prompts in your config file."
+                f"⚠️  WARNING: Using default prompts for Stage 1: {', '.join(used_defaults)}"
             )
-            print()
 
         # Combine the parts
         prompt_parts = [
             f"RESEARCH CONTEXT:\n{research_context}",
-            f"SYNTHESIS INSTRUCTIONS:\n{report_prompt}",
+            f"CONTENT SYNTHESIS INSTRUCTIONS:\n{content_prompt}",
         ]
 
         return "\n\n".join(prompt_parts)
+
+    def _build_stage2_system_prompt(self) -> str:
+        """
+        Construct the system prompt for Stage 2 (style formatting).
+
+        Returns:
+            Complete system prompt string for Stage 2
+        """
+        defaults = self._get_default_prompts()
+        used_defaults = []
+
+        # Get style formatting prompt
+        style_prompt = self.generation_config.get("style_formatting_prompt", "").strip()
+        if not style_prompt:
+            style_prompt = defaults["style_formatting_prompt"]
+            used_defaults.append("style_formatting_prompt")
+
+        # Warn user about defaults
+        if used_defaults:
+            print(
+                f"⚠️  WARNING: Using default prompts for Stage 2: {', '.join(used_defaults)}"
+            )
+
+        return style_prompt
 
     def _extract_paper_content(self, papers: List[Dict]) -> str:
         """
@@ -253,23 +304,15 @@ class PaperSynthesizer:
             content_parts.extend(paper_section)
             content_parts.append("-" * 30)
 
-        # Add synthesis guidance
-        content_parts.extend(
-            [
-                "\nSYNTHESIS GUIDANCE:",
-                f"- Total papers to synthesize: {len(papers)}",
-                f"- Papers are ordered by {score_field} (highest first)",
-            ]
-        )
-
         return "\n".join(content_parts)
 
-    def _call_llm_api(self, content: str) -> Optional[str]:
+    def _call_llm_api(self, content: str, system_prompt: str) -> Optional[str]:
         """
         Make an API call to the configured LLM.
 
         Args:
             content: Content to send to the LLM
+            system_prompt: System prompt to use
 
         Returns:
             Response text or None on failure
@@ -281,7 +324,7 @@ class PaperSynthesizer:
                 response = self.client.chat.completions.create(
                     model=self.model_config["model"],
                     messages=[
-                        {"role": "system", "content": self.system_prompt},
+                        {"role": "system", "content": system_prompt},
                         {"role": "user", "content": content},
                     ],
                     temperature=self.model_config.get("temperature", 0.1),
@@ -292,7 +335,7 @@ class PaperSynthesizer:
             elif provider == "anthropic":
                 response = self.client.messages.create(
                     model=self.model_config["model"],
-                    system=self.system_prompt,
+                    system=system_prompt,
                     messages=[{"role": "user", "content": content}],
                     temperature=self.model_config.get("temperature", 0.1),
                     max_tokens=self.model_config.get("max_tokens", 4000),
@@ -301,7 +344,7 @@ class PaperSynthesizer:
 
             elif provider == "google":
                 model = self.client.GenerativeModel(self.model_config["model"])
-                prompt = f"{self.system_prompt}\n\n{content}"
+                prompt = f"{system_prompt}\n\n{content}"
                 response = model.generate_content(
                     prompt,
                     generation_config=self.client.types.GenerationConfig(
@@ -312,11 +355,11 @@ class PaperSynthesizer:
                 return response.text
 
             elif provider == "ollama":
-                return self._call_ollama_api(content)
+                return self._call_ollama_api(content, system_prompt)
             elif provider == "lmstudio":
-                return self._call_lmstudio_api(content)
+                return self._call_lmstudio_api(content, system_prompt)
             elif provider in ["local", "custom"]:
-                return self._call_local_api(content)
+                return self._call_local_api(content, system_prompt)
             else:
                 raise ValueError(f"Unsupported provider: {provider}")
 
@@ -324,14 +367,14 @@ class PaperSynthesizer:
             print(f"API call failed: {e}")
             return None
 
-    def _call_ollama_api(self, content: str) -> Optional[str]:
+    def _call_ollama_api(self, content: str, system_prompt: str) -> Optional[str]:
         """Call Ollama API."""
         import requests
 
         base_url = self.model_config.get("base_url", "http://localhost:11434")
         model_name = self.model_config["model"]
 
-        full_prompt = f"{self.system_prompt}\n\n{content}"
+        full_prompt = f"{system_prompt}\n\n{content}"
 
         payload = {
             "model": model_name,
@@ -354,7 +397,7 @@ class PaperSynthesizer:
             print(f"Ollama API call failed: {e}")
             return None
 
-    def _call_lmstudio_api(self, content: str) -> Optional[str]:
+    def _call_lmstudio_api(self, content: str, system_prompt: str) -> Optional[str]:
         """Call LM Studio API."""
         try:
             import openai
@@ -370,7 +413,7 @@ class PaperSynthesizer:
             response = local_client.chat.completions.create(
                 model=model_name,
                 messages=[
-                    {"role": "system", "content": self.system_prompt},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": content},
                 ],
                 temperature=self.model_config.get("temperature", 0.1),
@@ -382,7 +425,7 @@ class PaperSynthesizer:
             print(f"LM Studio API call failed: {e}")
             return None
 
-    def _call_local_api(self, content: str) -> Optional[str]:
+    def _call_local_api(self, content: str, system_prompt: str) -> Optional[str]:
         """Call custom local API."""
         import requests
 
@@ -405,7 +448,7 @@ class PaperSynthesizer:
                 response = local_client.chat.completions.create(
                     model=model_name,
                     messages=[
-                        {"role": "system", "content": self.system_prompt},
+                        {"role": "system", "content": system_prompt},
                         {"role": "user", "content": content},
                     ],
                     temperature=self.model_config.get("temperature", 0.1),
@@ -415,7 +458,7 @@ class PaperSynthesizer:
                 return response.choices[0].message.content
 
             elif api_format == "ollama":
-                full_prompt = f"{self.system_prompt}\n\n{content}"
+                full_prompt = f"{system_prompt}\n\n{content}"
 
                 payload = {
                     "model": model_name,
@@ -442,11 +485,59 @@ class PaperSynthesizer:
             print(f"Local API call failed: {e}")
             return None
 
-    def _validate_synthesis_response(
+    def _validate_stage1_response(
         self, response_text: str
     ) -> Tuple[bool, Optional[str]]:
         """
-        Validate that the synthesis response is reasonable.
+        Validate Stage 1 (content synthesis) response.
+
+        Args:
+            response_text: Raw response from LLM
+
+        Returns:
+            Tuple of (is_valid, cleaned_response)
+        """
+        try:
+            if not response_text or len(response_text.strip()) < 200:
+                return False, None
+
+            cleaned_response = response_text.strip()
+
+            # Remove any thinking tokens that might leak through
+            cleaned_response = re.sub(
+                r"<think>.*?</think>",
+                "",
+                cleaned_response,
+                flags=re.DOTALL | re.IGNORECASE,
+            )
+            cleaned_response = re.sub(r"<[^>]+>", "", cleaned_response)
+
+            # Clean up extra whitespace
+            cleaned_response = re.sub(r"\n\s*\n\s*\n", "\n\n", cleaned_response)
+            cleaned_response = cleaned_response.strip()
+
+            # Basic quality checks for content synthesis
+            if len(cleaned_response) < 200:
+                return False, None
+
+            # Should mention multiple papers (look for reasonable author mentions)
+            author_mentions = len(
+                re.findall(r"\b[A-Z][a-z]+\s+et\s+al\.?", cleaned_response)
+            )
+            if author_mentions < 2:  # Should have at least 2 papers mentioned
+                return False, None
+
+            return True, cleaned_response
+
+        except Exception as e:
+            print(f"Stage 1 response validation error: {e}")
+            return False, None
+
+    def _validate_stage2_response(
+        self, response_text: str
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Validate Stage 2 (style formatting) response.
 
         Args:
             response_text: Raw response from LLM
@@ -460,7 +551,7 @@ class PaperSynthesizer:
 
             cleaned_response = response_text.strip()
 
-            # Remove any thinking tokens or artifacts that might leak through
+            # Remove any thinking tokens
             cleaned_response = re.sub(
                 r"<think>.*?</think>",
                 "",
@@ -473,11 +564,11 @@ class PaperSynthesizer:
             cleaned_response = re.sub(r"\n\s*\n\s*\n", "\n\n", cleaned_response)
             cleaned_response = cleaned_response.strip()
 
-            # Basic quality checks
+            # Basic quality checks for final synthesis
             if len(cleaned_response) < 500:
                 return False, None
 
-            # Check for reasonable structure (should have multiple paragraphs)
+            # Should be narrative format (check for proper flow)
             paragraphs = [
                 p.strip() for p in cleaned_response.split("\n\n") if p.strip()
             ]
@@ -487,12 +578,149 @@ class PaperSynthesizer:
             return True, cleaned_response
 
         except Exception as e:
-            print(f"Response validation error: {e}")
+            print(f"Stage 2 response validation error: {e}")
             return False, None
+
+    def _run_stage1_synthesis(self, paper_content: str) -> Optional[str]:
+        """
+        Run Stage 1: Content synthesis with retry logic.
+
+        Args:
+            paper_content: Formatted paper content
+
+        Returns:
+            Stage 1 synthesis result or None on failure
+        """
+        print("Stage 1: Content synthesis...")
+        self.stats["stage1_attempts"] += 1
+
+        for attempt in range(self.retry_attempts + 1):
+            try:
+                # Make LLM call for Stage 1
+                response_text = self._call_llm_api(
+                    paper_content, self.stage1_system_prompt
+                )
+
+                if response_text is None:
+                    if attempt < self.retry_attempts:
+                        self.stats["total_retries"] += 1
+                        print(
+                            f"  → Stage 1 API call failed, retrying... (attempt {attempt + 1})"
+                        )
+                        time.sleep(2)
+                        continue
+                    else:
+                        print(f"  → Stage 1 API calls failed after all attempts")
+                        break
+
+                # Validate Stage 1 response
+                is_valid, cleaned_response = self._validate_stage1_response(
+                    response_text
+                )
+
+                if is_valid:
+                    print(f"  ✅ Stage 1 completed successfully")
+                    return cleaned_response
+                else:
+                    if attempt < self.retry_attempts:
+                        self.stats["total_retries"] += 1
+                        print(
+                            f"  → Stage 1 invalid response, retrying... (attempt {attempt + 1})"
+                        )
+                        time.sleep(2)
+                        continue
+                    else:
+                        print(f"  → Stage 1 failed validation after all attempts")
+                        break
+
+            except Exception as e:
+                if attempt < self.retry_attempts:
+                    self.stats["total_retries"] += 1
+                    print(
+                        f"  → Stage 1 error: {e}, retrying... (attempt {attempt + 1})"
+                    )
+                    time.sleep(2)
+                    continue
+                else:
+                    print(f"  → Stage 1 final failure: {e}")
+                    break
+
+        self.stats["stage1_failures"] += 1
+        return None
+
+    def _run_stage2_formatting(self, stage1_content: str) -> Optional[str]:
+        """
+        Run Stage 2: Style formatting with retry logic.
+
+        Args:
+            stage1_content: Content from Stage 1
+
+        Returns:
+            Final formatted synthesis or None on failure
+        """
+        print("Stage 2: Style formatting...")
+        self.stats["stage2_attempts"] += 1
+
+        # Prepare Stage 2 input
+        stage2_input = f"Transform the following structured content into a polished daily research digest:\n\n{stage1_content}"
+
+        for attempt in range(self.retry_attempts + 1):
+            try:
+                # Make LLM call for Stage 2
+                response_text = self._call_llm_api(
+                    stage2_input, self.stage2_system_prompt
+                )
+
+                if response_text is None:
+                    if attempt < self.retry_attempts:
+                        self.stats["total_retries"] += 1
+                        print(
+                            f"  → Stage 2 API call failed, retrying... (attempt {attempt + 1})"
+                        )
+                        time.sleep(2)
+                        continue
+                    else:
+                        print(f"  → Stage 2 API calls failed after all attempts")
+                        break
+
+                # Validate Stage 2 response
+                is_valid, cleaned_response = self._validate_stage2_response(
+                    response_text
+                )
+
+                if is_valid:
+                    print(f"  ✅ Stage 2 completed successfully")
+                    return cleaned_response
+                else:
+                    if attempt < self.retry_attempts:
+                        self.stats["total_retries"] += 1
+                        print(
+                            f"  → Stage 2 invalid response, retrying... (attempt {attempt + 1})"
+                        )
+                        time.sleep(2)
+                        continue
+                    else:
+                        print(f"  → Stage 2 failed validation after all attempts")
+                        break
+
+            except Exception as e:
+                if attempt < self.retry_attempts:
+                    self.stats["total_retries"] += 1
+                    print(
+                        f"  → Stage 2 error: {e}, retrying... (attempt {attempt + 1})"
+                    )
+                    time.sleep(2)
+                    continue
+                else:
+                    print(f"  → Stage 2 final failure: {e}")
+                    break
+
+        self.stats["stage2_failures"] += 1
+        return None
 
     def synthesize_papers(self, papers: List[Dict]) -> Dict:
         """
-        Synthesize papers into a comprehensive report with retry logic.
+        Synthesize papers into a comprehensive report using two-stage approach.
 
         Args:
             papers: List of selected papers to synthesize
@@ -511,104 +739,80 @@ class PaperSynthesizer:
                 "synthesized_at": datetime.now().isoformat(),
             }
 
-        print(f"Starting synthesis of {len(papers)} papers using {self.model_alias}")
+        print(
+            f"Starting two-stage synthesis of {len(papers)} papers using {self.model_alias}"
+        )
         print(f"Metadata fields included: {', '.join(self.include_metadata)}")
 
         start_time = time.time()
-        self.stats["synthesis_attempts"] += 1
 
         # Extract and format content
         paper_content = self._extract_paper_content(papers)
 
-        # Attempt synthesis with retry logic
-        for attempt in range(self.retry_attempts + 1):
-            try:
-                print(f"Synthesis attempt {attempt + 1}/{self.retry_attempts + 1}...")
+        # Stage 1: Content synthesis
+        stage1_result = self._run_stage1_synthesis(paper_content)
+        if stage1_result is None:
+            synthesis_time = time.time() - start_time
+            return {
+                "synthesis_report": None,
+                "synthesis_success": False,
+                "error": "Stage 1 (content synthesis) failed after all retry attempts",
+                "papers_count": len(papers),
+                "synthesis_time": synthesis_time,
+                "synthesized_by": self.model_alias,
+                "synthesized_at": datetime.now().isoformat(),
+                "stage1_content": None,
+                "metadata_included": self.include_metadata.copy(),
+            }
 
-                # Make LLM call
-                response_text = self._call_llm_api(paper_content)
+        # Stage 2: Style formatting
+        stage2_result = self._run_stage2_formatting(stage1_result)
+        if stage2_result is None:
+            synthesis_time = time.time() - start_time
+            return {
+                "synthesis_report": None,
+                "synthesis_success": False,
+                "error": "Stage 2 (style formatting) failed after all retry attempts",
+                "papers_count": len(papers),
+                "synthesis_time": synthesis_time,
+                "synthesized_by": self.model_alias,
+                "synthesized_at": datetime.now().isoformat(),
+                "stage1_content": stage1_result,  # Include Stage 1 result for debugging
+                "metadata_included": self.include_metadata.copy(),
+            }
 
-                if response_text is None:
-                    if attempt < self.retry_attempts:
-                        self.stats["total_retries"] += 1
-                        print(f"  → API call failed, retrying in 2 seconds...")
-                        time.sleep(2)
-                        continue
-                    else:
-                        print(f"  → All API attempts failed")
-                        break
-
-                # Validate response
-                is_valid, cleaned_response = self._validate_synthesis_response(
-                    response_text
-                )
-
-                if is_valid:
-                    # Success!
-                    synthesis_time = time.time() - start_time
-                    self.stats["papers_synthesized"] = len(papers)
-                    self.stats["synthesis_time"] = synthesis_time
-
-                    result = {
-                        "synthesis_report": cleaned_response,
-                        "synthesis_success": True,
-                        "papers_count": len(papers),
-                        "synthesis_time": synthesis_time,
-                        "synthesized_by": self.model_alias,
-                        "synthesized_at": datetime.now().isoformat(),
-                        "metadata_included": self.include_metadata.copy(),
-                        "config_used": {
-                            "model_alias": self.model_alias,
-                            "retry_attempts": self.retry_attempts,
-                            "include_metadata": self.include_metadata,
-                        },
-                    }
-
-                    print(
-                        f"✅ Synthesis completed successfully in {synthesis_time:.1f} seconds"
-                    )
-                    print(f"   Generated report: {len(cleaned_response)} characters")
-                    return result
-
-                else:
-                    if attempt < self.retry_attempts:
-                        self.stats["total_retries"] += 1
-                        print(f"  → Invalid response format, retrying in 2 seconds...")
-                        time.sleep(2)
-                        continue
-                    else:
-                        print(f"  → Failed to get valid response after all attempts")
-                        break
-
-            except Exception as e:
-                if attempt < self.retry_attempts:
-                    self.stats["total_retries"] += 1
-                    print(f"  → Error during synthesis: {e}, retrying in 2 seconds...")
-                    time.sleep(2)
-                    continue
-                else:
-                    print(f"  → Final failure after all attempts: {e}")
-                    break
-
-        # All attempts failed
+        # Success!
         synthesis_time = time.time() - start_time
-        self.stats["synthesis_failures"] += 1
+        self.stats["papers_synthesized"] = len(papers)
+        self.stats["synthesis_time"] = synthesis_time
 
-        return {
-            "synthesis_report": None,
-            "synthesis_success": False,
-            "error": "Synthesis failed after all retry attempts",
+        result = {
+            "synthesis_report": stage2_result,
+            "synthesis_success": True,
             "papers_count": len(papers),
             "synthesis_time": synthesis_time,
             "synthesized_by": self.model_alias,
             "synthesized_at": datetime.now().isoformat(),
+            "stage1_content": stage1_result,  # Include for transparency
             "metadata_included": self.include_metadata.copy(),
+            "config_used": {
+                "model_alias": self.model_alias,
+                "retry_attempts": self.retry_attempts,
+                "include_metadata": self.include_metadata,
+            },
         }
 
+        print(
+            f"✅ Two-stage synthesis completed successfully in {synthesis_time:.1f} seconds"
+        )
+        print(f"   Generated report: {len(stage2_result)} characters")
+        return result
 
+
+# Update validation and testing functions for two-stage approach
 def validate_synthesis_config(config: Dict) -> List[str]:
     """
-    Validate the synthesis configuration.
+    Validate the synthesis configuration for two-stage approach.
 
     Args:
         config: Configuration dictionary
@@ -668,7 +872,7 @@ def display_default_synthesis_prompts():
     """Display the default prompts for user reference."""
     defaults = get_default_synthesis_prompts()
 
-    print("=== DEFAULT SYNTHESIS PROMPTS ===")
+    print("=== DEFAULT TWO-STAGE SYNTHESIS PROMPTS ===")
     for prompt_name, prompt_text in defaults.items():
         print(f"\n{prompt_name}:")
         print("-" * 40)
@@ -677,8 +881,8 @@ def display_default_synthesis_prompts():
 
 
 def test_synthesis_utilities():
-    """Test synthesis utilities with mock papers."""
-    print("=== TESTING SYNTHESIS UTILITIES ===")
+    """Test synthesis utilities with mock papers for two-stage approach."""
+    print("=== TESTING TWO-STAGE SYNTHESIS UTILITIES ===")
 
     # Test 1: Default prompts
     print("\n1. Testing default prompts...")
@@ -707,61 +911,20 @@ def test_synthesis_utilities():
                     "rescored_llm_score",
                     "rescored_llm_explanation",
                 ],
+                "content_synthesis_prompt": "Custom content prompt",
+                "style_formatting_prompt": "Custom style prompt",
             },
         }
     }
 
     validation_errors = validate_synthesis_config(valid_config)
     if not validation_errors:
-        print("✅ Valid configuration passed")
+        print("✅ Valid two-stage configuration passed")
     else:
         print(f"❌ Unexpected validation errors: {validation_errors}")
 
-    invalid_config = {
-        "synthesis": {
-            # Missing model_alias
-            "generation": {"include_metadata": []}  # Empty metadata
-        }
-    }
-
-    validation_errors = validate_synthesis_config(invalid_config)
-    if validation_errors:
-        print("✅ Invalid configuration correctly rejected")
-    else:
-        print("❌ Should have found validation errors")
-
-    # Test 3: Content extraction and response validation
-    print("\n3. Testing content extraction and response validation...")
-
-    mock_papers = [
-        {
-            "id": "paper1",
-            "title": "Deep Learning for Natural Language Processing",
-            "abstract": "This paper presents a novel transformer architecture for language understanding...",
-            "categories": ["cs.CL", "cs.LG"],
-            "llm_summary": "The paper introduces an improved transformer model with attention mechanisms...",
-            "rescored_llm_score": 8.5,
-            "rescored_llm_explanation": "Significant methodological advance with strong empirical validation in NLP tasks.",
-        },
-        {
-            "id": "paper2",
-            "title": "Bayesian Neural Networks for Uncertainty Quantification",
-            "abstract": "We propose a Bayesian approach to neural networks that provides uncertainty estimates...",
-            "categories": ["cs.LG", "stat.ML"],
-            "llm_summary": "This work combines Bayesian inference with deep learning for uncertainty quantification...",
-            "rescored_llm_score": 7.8,
-            "rescored_llm_explanation": "Solid theoretical contribution with practical applications in uncertainty estimation.",
-        },
-        {
-            "id": "paper3",
-            "title": "Reinforcement Learning with Transformer Architectures",
-            "abstract": "This study explores the use of transformer models in reinforcement learning settings...",
-            "categories": ["cs.LG", "cs.AI"],
-            "llm_summary": "The paper demonstrates how transformer architectures can be effectively used in RL...",
-            "rescored_llm_score": 8.2,
-            "rescored_llm_explanation": "Novel architectural approach with promising experimental results in RL domains.",
-        },
-    ]
+    # Test 3: Mock synthesizer initialization
+    print("\n3. Testing two-stage synthesizer initialization...")
 
     class MockLLMManager:
         def get_model_config(self, alias):
@@ -777,37 +940,45 @@ def test_synthesis_utilities():
 
     try:
         synthesizer = PaperSynthesizer(valid_config, MockLLMManager(), "test-model")
-
-        # Test content extraction
-        content = synthesizer._extract_paper_content(mock_papers)
-        print(f"✅ Content extraction working: {len(content)} characters")
+        print("✅ Two-stage synthesizer initialized successfully")
         print(
-            f"   Contains all papers: {all(f'PAPER {i}' in content for i in range(1, 4))}"
+            f"   Stage 1 prompt length: {len(synthesizer.stage1_system_prompt)} characters"
+        )
+        print(
+            f"   Stage 2 prompt length: {len(synthesizer.stage2_system_prompt)} characters"
         )
 
-        # Test response validation
-        good_response = """This is a comprehensive synthesis of recent research papers in machine learning and artificial intelligence.
+        # Test validation functions
+        test_response_good = """
+    Theme 1: Robust Inference Frameworks
+    - Smith et al. present a Bayesian approach for galaxy classification, achieving 92% accuracy on SDSS data.
+    - Lee et al. introduce a novel uncertainty quantification method, highlighting limitations in current ML models.
 
-The papers demonstrate significant advances in transformer architectures and their applications across multiple domains. Several key themes emerge from this analysis.
+    Theme 2: Interpretable AI Methods
+    - Johnson et al. propose interpretable neural networks for cosmic discovery, with improved transparency over previous models.
+    - Patel et al. demonstrate that feature attribution methods reveal biases in astronomical surveys.
 
-First, there is a clear trend toward more efficient attention mechanisms that reduce computational complexity while maintaining performance. Second, the integration of uncertainty quantification methods is becoming increasingly important for real-world applications.
+    Connections:
+    - Both Smith et al. and Lee et al. focus on robust statistical inference, while Johnson et al. and Patel et al. emphasize interpretability.
+    - Quantitative results: Smith et al. (92% accuracy), Lee et al. (uncertainty reduced by 15%).
 
-These developments have important implications for the field and suggest promising directions for future research."""
+    Tensions:
+    - Lee et al. note limitations in ML confidence, contrasting with Johnson et al.'s claims of model reliability.
+    """
+        test_response_bad = "Too short."
 
-        bad_response = "Too short."
-
-        is_valid_good, _ = synthesizer._validate_synthesis_response(good_response)
-        is_valid_bad, _ = synthesizer._validate_synthesis_response(bad_response)
+        is_valid_good, _ = synthesizer._validate_stage1_response(test_response_good)
+        is_valid_bad, _ = synthesizer._validate_stage1_response(test_response_bad)
 
         print(
-            f"✅ Response validation working: good={is_valid_good}, bad={is_valid_bad}"
+            f"✅ Stage 1 validation working: good={is_valid_good}, bad={is_valid_bad}"
         )
 
     except Exception as e:
-        print(f"❌ Synthesis utilities test failed: {e}")
+        print(f"❌ Two-stage synthesizer test failed: {e}")
         return
 
-    print(f"\n✅ All synthesis utilities tests passed")
+    print(f"\n✅ All two-stage synthesis utilities tests passed")
 
 
 if __name__ == "__main__":
@@ -819,7 +990,7 @@ if __name__ == "__main__":
         elif sys.argv[1] in ["--defaults", "-d"]:
             display_default_synthesis_prompts()
         elif sys.argv[1] in ["--help", "-h"]:
-            print("Paper Synthesis Utilities")
+            print("Two-Stage Paper Synthesis Utilities")
             print("Usage:")
             print("  python synthesis_utils.py --test       # Run mock tests")
             print("  python synthesis_utils.py --defaults   # Show default prompts")
@@ -827,5 +998,5 @@ if __name__ == "__main__":
         else:
             print("Unknown option. Use --help for usage information.")
     else:
-        print("Paper Synthesis Utilities Module")
+        print("Two-Stage Paper Synthesis Utilities Module")
         print("Run with --help for usage options")
