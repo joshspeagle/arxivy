@@ -315,6 +315,9 @@ synthesis:
   # Input file (null = auto-detect most recent rescored_papers_*.json)
   input_file: null
 
+  # Storage options for extracted content
+  synthesis_storage_dir: "./data/reports" # Directory for reports
+
   # Model configuration (must be defined in config/llm.yaml)
   model_alias: "deepseek-r1-qwen3"
 
@@ -324,8 +327,8 @@ synthesis:
     percentile: 35
     score_threshold: 7.5
     min_papers: 3
-    max_papers: 12
-    n_random: 3
+    max_papers: 8
+    n_random: 2
     temperature: 0.5
 
   # Report generation
@@ -356,10 +359,11 @@ synthesis:
 
     # Part 2: Synthesis strategy for final report
     content_synthesis_prompt: |
-      Extract and organize the key information from the selected papers. 
-      Focus on content accuracy and connections - formatting will be handled separately.
+      Extract and organize the key information from the selected papers, aiming for conciseness 
+      and a total length under 2000 words.
+      Focus on content accuracy and connections—formatting will be handled separately.
 
-      For each paper, identify:
+      For each paper, briefly identify:
       - Authors and core contribution
       - Key findings with specific results/numbers
       - Methodological innovations
@@ -372,51 +376,38 @@ synthesis:
       - Contrasting results or approaches
 
       Output as structured content with:
-      - Brief theme descriptions
-      - Paper summaries under each theme
+      - Brief theme descriptions (2-3 sentences each)
+      - Concise paper summaries under each theme
       - Notable connections between papers
       - Key quantitative results
       - Any tensions or disagreements
 
-      Do not worry about narrative flow, style, or final formatting.
+      Keep all summaries succinct and focused. Do not worry about narrative flow, style, or final formatting,
+      with the key exception that papers should NEVER be referred to by number, but ONLY by author names and titles.
 
     # Part 3: Final report style and formatting
     # This will be applied after synthesis to create the final report
     style_formatting_prompt: |
-      Transform the structured content into a polished daily research digest (800-1200 words).
+      Transform the structured content into a polished, concise daily research digest (800-1200 words).
 
       **Required Style:**
       - Expert-to-expert voice, conversational but authoritative
       - Essay format with smooth transitions
-      - Begin directly with substantive content
-      - Complete in one continuous narrative - no restarts or section breaks
-      - Use author names, never paper numbers
+      - Begin directly with substantive content (NO introductory fluff)
+      - Complete in ONE continuous narrative - NO restarts and NO section breaks
+      - Papers should NEVER be referred to by number, but ONLY by author names and titles
 
       **Formatting:**
-      - Bold key terms, methods, and quantitative results
+      - **Bold** key terms, methods, and quantitative results
       - Markdown formatting but avoid excessive styling
       - Natural transitions between themes
       - Precise technical language with appropriate skepticism
 
       **Content Preservation:**
       - Maintain all specific results and findings from the input
+      - Avoid misattributing specific methods and results between papers
       - Preserve author attributions
       - Keep technical accuracy
       - Include confidence levels and limitations
 
       Generate an informative title capturing the key theme or development.
-
-    # Example alternative format (commented out for reference)
-    # podcast_prompt: |
-    #   Create a 10-15 minute conversational podcast script for "AI Research Roundup."
-    #
-    #   Structure as an engaging audio experience:
-    #   - Hook introduction highlighting the day's key themes
-    #   - Use rescored scores to determine discussion depth and emphasis
-    #   - Main segments organized by research themes (not score order)
-    #   - Include natural transitions and audio cues: [PAUSE], [EMPHASIS], [TRANSITION]
-    #   - Explain technical concepts clearly for audio consumption
-    #   - Conclude with synthesis of implications and future directions
-    #
-    #   For each paper: mention title, authors, key finding, and why it matters.
-    #   Maintain conversational tone while preserving technical accuracy.

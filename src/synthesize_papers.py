@@ -323,7 +323,9 @@ class TwoStageSynthesisWorkflow:
         Returns:
             Tuple of (results_path, report_path, stage1_path) where paths may be None if content unavailable
         """
-        output_dir = self.config.get("output", {}).get("base_dir", "./data")
+        output_dir = self.config.get("synthesis", {}).get(
+            "synthesis_storage_dir", "./data"
+        )
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Create streamlined results
