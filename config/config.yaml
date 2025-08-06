@@ -411,3 +411,88 @@ synthesis:
       - Include confidence levels and limitations
 
       Generate an informative title capturing the key theme or development.
+
+# Audio Script Generation Settings
+audio:
+  # Input file (null = auto-detect most recent synthesis_results_*.json)
+  input_file: null
+
+  # Storage options for audio scripts
+  audio_storage_dir: "./data/audio" # Directory for audio scripts and results
+
+  # Model configuration (must be defined in config/llm.yaml)
+  model_alias: "deepseek-r1-qwen3"
+
+  # Audio script generation parameters
+  target_duration_minutes: 11 # Target duration for audio narration (words = duration * 130)
+  prefer_stage2: true # Prefer Stage 2 (final report) over Stage 1 (structured content) for conversion
+  retry_attempts: 2
+
+  # Three-part prompt configuration for audio script generation
+  # Part 1: Research context (null = inherit from synthesis or scoring configuration)
+  research_context_prompt: |
+    You are creating a daily research digest for an interdisciplinary expert who uses this to stay
+    current with relevant developments. The listener works on "statistical AI for cosmic discovery", 
+    focusing on novel AI/ML/statistics methods, interpretable approaches, and robust inference frameworks, 
+    as well as scientific applications to astronomical surveys with a focus on galaxy evolution.
+
+  # Part 2: Stage 2 (final report) to audio conversion
+  stage2_to_audio_prompt: |
+    Convert this written research digest into a clear spoken script suitable for academic audio delivery:
+
+    **Speech Structure Requirements:**
+    - Break complex sentences with multiple clauses into cleaner, shorter statements
+    - Replace numbered/bulleted lists with natural spoken enumeration
+    - Ensure each sentence can be easily followed when heard, not seen
+    - Remove visual formatting and structure cues that don't work in audio
+    - Add brief contextual setup before introducing complex technical terms
+    - Papers should NEVER be referred to by number, but ONLY by author names and titles
+
+    **Flow and Transitions:**
+    - Use clear logical connectors between ideas: "Building on this work...", "In contrast...", "Related to this..."
+    - Provide smooth bridges between different papers and topics
+    - Include brief contextual orientation when switching focus areas
+    - Maintain logical progression that's easy to follow auditorily
+
+    **Academic Tone for Audio:**
+    - Preserve rigorous academic language and technical precision
+    - Maintain expert-to-expert credibility and depth
+    - Write numbers and technical terms clearly for spoken delivery
+    - Keep professional tone while optimizing sentence structure for listening
+    - Include author attributions and quantitative findings as in original
+
+    **Clarity Optimizations:**
+    - Front-load key information in sentences for better audio comprehension
+    - Use parallel structure for related concepts
+    - Provide sufficient context before complex technical discussions
+    - Ensure main points are clear even if listener's attention briefly wanes
+
+    Target: 10-12 minutes reading time (~1500 words). 
+    Maintain academic rigor while optimizing for spoken delivery.
+
+  # Part 3: Stage 1 (structured content) to audio conversion
+  stage1_to_audio_prompt: |
+    Convert this structured research content into a rigorous, academic spoken narrative suitable for expert listeners:
+
+    **Academic Audio Narrative Requirements:**
+    - Transform structured content into a flowing, technically precise spoken narrative
+    - Create smooth, logical transitions between themes and papers using clear connectors: "Building on this work...", "In contrast...", "Related to this..."
+    - Use verbal signposting: "First, let's examine...", "Next, we consider...", "Turning to another approach..."
+    - Remove all formatting and present as continuous speech
+    - Add a concise introduction that sets context for the research themes, using professional academic language
+    - Include a conclusion that synthesizes themes and highlights key technical takeaways
+    - Papers should NEVER be referred to by number, but ONLY by author names and titles
+
+    **Content Organization:**
+    - Group related findings into coherent verbal segments
+    - Clearly connect different papers and themes, emphasizing methodological links and contrasts
+    - Highlight connections and tensions between studies
+    - Present quantitative results and technical terms in a speech-friendly, precise format
+
+    **Style Guidelines:**
+    - Maintain a conversational but authoritative academic tone, as if explaining to a colleague
+    - Use natural speech rhythm and pacing, but prioritize clarity and technical rigor
+    - Emphasize important findings and methodological innovations with clear verbal cues
+    - Deliver expert-level content accessibly, ensuring technical accuracy and appropriate skepticism
+
+    Target: 10-12 minutes reading time (~1500 words). Output as a single continuous plain-text script.
