@@ -467,7 +467,8 @@ audio:
     - Provide sufficient context before complex technical discussions
     - Ensure main points are clear even if listener's attention briefly wanes
 
-    Target: 10-12 minutes reading time (~1500 words). 
+    Target: 10-12 minutes reading time (~1500 words).
+    Output as a single continuous plain-text script.
     Maintain academic rigor while optimizing for spoken delivery.
 
   # Part 3: Stage 1 (structured content) to audio conversion
@@ -495,7 +496,9 @@ audio:
     - Emphasize important findings and methodological innovations with clear verbal cues
     - Deliver expert-level content accessibly, ensuring technical accuracy and appropriate skepticism
 
-    Target: 10-12 minutes reading time (~1500 words). Output as a single continuous plain-text script.
+    Target: 10-12 minutes reading time (~1500 words).
+    Output as a single continuous plain-text script.
+    Maintain academic rigor while optimizing for spoken delivery.
 
 # Text-to-Speech Generation Settings
 text_to_speech:
@@ -503,13 +506,13 @@ text_to_speech:
 
   # TTS Provider Configuration
   tts:
-    provider: "coqui" # Options: coqui, bark, edge_tts, openai, elevenlabs, google_cloud
+    provider: "edge_tts" # Options: coqui, bark, edge_tts, openai, elevenlabs, google_cloud
     voice: null # If null, uses provider's default voice
     model: null # If null, uses provider's default model
 
     # Text processing options
     text_processing:
-      chunk_size: 10000 # Split long texts into chunks (chars)
+      chunk_size: 15000 # Split long texts into chunks (chars)
       chunk_overlap: 100 # Overlap between chunks to avoid cuts
       pause_between_chunks: 0.5 # Seconds of silence between chunks
 
@@ -531,7 +534,7 @@ text_to_speech:
 
   # Audio file organization
   files:
-    directory: "audio" # Directory relative to project root
+    directory: "data/audio" # Directory relative to project root
     naming_convention: "{timestamp}_{report_type}_summary" # Available: {timestamp}, {date}, {report_type}, {categories}
     include_metadata: true # Save JSON metadata file alongside audio
 
