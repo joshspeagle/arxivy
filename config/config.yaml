@@ -323,9 +323,9 @@ synthesis:
     score_field: "rescored_llm_score" # Which score to use for selection
     percentile: 35
     score_threshold: 7.5
-    min_papers: 2
-    max_papers: 7
-    n_random: 3
+    min_papers: 3
+    max_papers: 8
+    n_random: 2
     temperature: 0.5
 
   # Report generation

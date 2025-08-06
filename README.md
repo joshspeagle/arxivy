@@ -34,6 +34,7 @@ python src/selection_utils.py  # check selection setup
 python src/pdf_utils.py  # check PDF download setup
 python src/extract_utils.py  # check PDF text extraction setup
 python src/summarize_utils.py  # check LLM summarization setup
+python src/synthesis_utils.py  # check LLM synthesis setup
 ...
 
 # Run workflow (step-by-step)
@@ -43,6 +44,7 @@ python src/download_papers.py  # subselect and download PDFs
 python src/extract_papers.py  # extract text from PDFs (optional)
 python src/summarize_papers.py  # summarize papers (with LLM)
 python src/rescore_papers.py  # rescore papers using summaries (with LLM)
+python src/synthesize_papers.py  # subselect papers and synthesize report (with LLM)
 ...
 
 # Run workflow (integrated)
@@ -64,7 +66,7 @@ Configurations, API settings, and aliases for LLMs can be found in `config/llm.y
 - ✅ PDF processing (Step 3)
 - ✅ Summarization (Step 4)
 - ✅ Final scoring (Step 5)
-- ⏳ Report generation (Step 6)
+- ✅ Report generation (Step 6)
 - ⏳ Optional: Audio synthesis (Step 7)
 
 ## Requirements
