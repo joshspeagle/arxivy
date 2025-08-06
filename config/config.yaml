@@ -496,3 +496,45 @@ audio:
     - Deliver expert-level content accessibly, ensuring technical accuracy and appropriate skepticism
 
     Target: 10-12 minutes reading time (~1500 words). Output as a single continuous plain-text script.
+
+# Text-to-Speech Generation Settings
+text_to_speech:
+  enabled: true # Set to true to generate audio summaries
+
+  # TTS Provider Configuration
+  tts:
+    provider: "coqui" # Options: coqui, bark, edge_tts, openai, elevenlabs, google_cloud
+    voice: null # If null, uses provider's default voice
+    model: null # If null, uses provider's default model
+
+    # Text processing options
+    text_processing:
+      chunk_size: 10000 # Split long texts into chunks (chars)
+      chunk_overlap: 100 # Overlap between chunks to avoid cuts
+      pause_between_chunks: 0.5 # Seconds of silence between chunks
+
+      # Text preprocessing
+      clean_markdown: true # Remove markdown formatting
+      expand_abbreviations: true # Expand common abbreviations
+      add_pauses: true # Add natural pauses for punctuation
+
+    # Output settings
+    output:
+      format: "mp3" # mp3, wav, or provider default
+      quality: "high" # low, medium, high (provider dependent)
+      normalize_audio: true # Normalize audio levels
+
+    # Performance settings
+    parallel_generation: false # Generate chunks in parallel (API providers only)
+    cache_audio: true # Cache generated audio files
+    max_retries: 3 # Retry failed generations
+
+  # Audio file organization
+  files:
+    directory: "audio" # Directory relative to project root
+    naming_convention: "{timestamp}_{report_type}_summary" # Available: {timestamp}, {date}, {report_type}, {categories}
+    include_metadata: true # Save JSON metadata file alongside audio
+
+    # Archive settings
+    archive_old_files: true # Move old files to archive subdirectory
+    max_files_to_keep: 10 # Number of recent files to keep in main directory

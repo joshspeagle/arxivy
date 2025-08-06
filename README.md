@@ -68,7 +68,7 @@ Configurations, API settings, and aliases for LLMs can be found in `config/llm.y
 - ✅ Final scoring (Step 5)
 - ✅ Report generation (Step 6)
 
-- ✅ Optional: Audio synthesis (Step 7)
+- ✅ Optional: Audio synthesis
 
 ## Requirements
 
