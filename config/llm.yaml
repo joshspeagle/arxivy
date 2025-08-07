@@ -136,6 +136,15 @@ deepseek-r1-qwen3:
   reasoning: true
   description: "DeepSeek R1 Qwen3 8B - Advanced reasoning for local use"
 
+gpt-oss-20b:
+  provider: "lmstudio"
+  model: "openai/gpt-oss-20b"
+  base_url: "http://localhost:1234/v1"
+  temperature: 0.1
+  max_tokens: 25000
+  reasoning: true
+  description: "OSS 20B - Powerful reasoning capabilities for local use"
+
 # Custom Local API (Ollama or OpenAI format)
 custom-openai:
   provider: "local"
