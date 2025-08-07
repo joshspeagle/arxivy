@@ -27,6 +27,10 @@ pip install -r requirements.txt
 
 # Edit configurations in config/
 
+# Run the entire workflow
+python main.py  # runs everything based on the config file
+                # include --audio for audio generation
+
 # Test workflow components
 python src/llm_utils.py  # check LLM setup
 python src/score_utils.py  # check scoring setup
@@ -46,7 +50,7 @@ python src/summarize_papers.py  # summarize papers (with LLM)
 python src/rescore_papers.py  # rescore papers using summaries (with LLM)
 python src/synthesize_papers.py  # subselect papers and synthesize report (with LLM)
 
-# Optional components
+# Optional components for audio generation
 python src/create_audio_script.py  # convert report to audio script (with LLM)
 python src/generate_audio.py  # convert script to audio file with TTS
 ```
