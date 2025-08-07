@@ -40,28 +40,49 @@ class PaperSelector:
     Enhanced to support configurable score fields for different workflow stages.
     """
 
-    def __init__(self, config: Dict, score_field: str = "llm_score"):
+    def __init__(
+        self, config: Dict, score_field: str = "llm_score", config_source: str = "auto"
+    ):
         """
         Initialize the paper selector.
 
         Args:
             config: Configuration dictionary containing selection settings
             score_field: Name of the score field to use for selection (default: "llm_score")
+            config_source: Which config section to use ("pdf_processing", "synthesis", or "auto")
+                        "auto" uses synthesis.selection if available, otherwise pdf_processing.selection
         """
         self.config = config
         self.score_field = score_field
 
-        # Determine which config section to use based on context
-        # Try synthesis.selection first, then pdf_processing.selection for backward compatibility
-        if "synthesis" in config and "selection" in config["synthesis"]:
-            self.selection_config = config["synthesis"]["selection"]
-            self.config_source = "synthesis"
-        elif "pdf_processing" in config and "selection" in config["pdf_processing"]:
-            self.selection_config = config["pdf_processing"]["selection"]
-            self.config_source = "pdf_processing"
+        # Determine which config section to use based on config_source parameter
+        if config_source == "pdf_processing":
+            if "pdf_processing" in config and "selection" in config["pdf_processing"]:
+                self.selection_config = config["pdf_processing"]["selection"]
+                self.config_source = "pdf_processing"
+            else:
+                raise ValueError("pdf_processing.selection configuration not found")
+        elif config_source == "synthesis":
+            if "synthesis" in config and "selection" in config["synthesis"]:
+                self.selection_config = config["synthesis"]["selection"]
+                self.config_source = "synthesis"
+            else:
+                raise ValueError("synthesis.selection configuration not found")
+        elif config_source == "auto":
+            # Original behavior - try synthesis first, then pdf_processing
+            if "synthesis" in config and "selection" in config["synthesis"]:
+                self.selection_config = config["synthesis"]["selection"]
+                self.config_source = "synthesis"
+            elif "pdf_processing" in config and "selection" in config["pdf_processing"]:
+                self.selection_config = config["pdf_processing"]["selection"]
+                self.config_source = "pdf_processing"
+            else:
+                raise ValueError(
+                    "No selection configuration found in config (looking for synthesis.selection or pdf_processing.selection)"
+                )
         else:
             raise ValueError(
-                "No selection configuration found in config (looking for synthesis.selection or pdf_processing.selection)"
+                f"Invalid config_source: {config_source}. Must be 'pdf_processing', 'synthesis', or 'auto'"
             )
 
         # Selection parameters

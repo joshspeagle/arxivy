@@ -61,8 +61,10 @@ class PDFProcessor:
         self.config = config
         self.pdf_config = config.get("pdf_processing", {})
 
-        # Initialize components
-        self.selector = PaperSelector(config)
+        # Initialize components - explicitly use pdf_processing config
+        self.selector = PaperSelector(
+            config, score_field="llm_score", config_source="pdf_processing"
+        )
         self.downloader = PDFDownloader(config)
 
         # File paths
