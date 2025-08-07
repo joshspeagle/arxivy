@@ -129,12 +129,13 @@ class PaperScorer:
         except Exception as e:
             raise RuntimeError(f"Failed to save papers to {filepath}: {e}")
 
-    def generate_output_filepath(self, input_filepath: str) -> str:
+    def generate_output_filepath(self, input_filepath: str, format_type: str) -> str:
         """
         Generate output filepath by adding "_scored" before the extension.
 
         Args:
             input_filepath: Original input file path
+            format_type: Type of input file (e.g., 'json', 'csv') - for future extensibility
 
         Returns:
             Output file path
@@ -144,6 +145,8 @@ class PaperScorer:
         suffix = path.suffix
 
         # Add _scored to the filename
+        # Note: format_type parameter is included for consistency with other modules
+        # and future extensibility, but not currently used in filename generation
         new_filename = f"{stem}_scored{suffix}"
         return str(path.parent / new_filename)
 
