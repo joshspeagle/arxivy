@@ -53,7 +53,7 @@ scoring:
   input_file: null
 
   # Model configuration (must be defined in config/llm.yaml)
-  model_alias: "deepseek-r1-qwen3"
+  model_alias: "gpt-oss-20b"
 
   # Limit number of papers to score (null = score all papers)
   # Note: Papers are selected in order from arxiv fetch (first N papers)
@@ -63,7 +63,7 @@ scoring:
   batch_size: 3
 
   # Retry configuration
-  retry_attempts: 2
+  retry_attempts: 5
 
   # Metadata fields to include when scoring papers
   # Available: title, abstract, authors, categories, published, updated
@@ -76,27 +76,29 @@ scoring:
   # Three-part prompt configuration for scoring
   # Part 1: Research context - describe the researcher's background and interests
   research_context_prompt: |
-    You are evaluating research papers for Josh Speagle, an Assistant Professor of 
-    Astrostatistics at the University of Toronto whose research motto is "Statistical AI 
-    for Cosmic Discovery." His research focuses on four core areas:
+    You are evaluating research papers for Josh Speagle, an Assistant Professor at the University of Toronto
+    whose research motto is "Statistical AI for Cosmic Discovery."
+    His research focuses on four core areas:
 
     1. **Statistical Learning & AI**: Novel methods to discover patterns from large, messy datasets
     2. **Interpretability & Insight**: Rigorous understanding of methods to extract scientific insights
     3. **Inference & Computation**: Robust frameworks and algorithms to quantify what we can learn from data
-    4. **Discovery & Understanding**: Applying methods to astronomical surveys to understand galaxy formation and evolution
+    4. **Discovery & Understanding**: Applying methods to astronomical surveys and other domains, with particular interest in galaxies and stars
 
-    Josh values work that advances theoretical understanding of machine learning and statistics,
-    introduces novel methodological approaches, demonstrates innovative scientific applications,
-    announces significant observational/experimental results, and has potential to influence
-    future research in ML/statistics, especially in astrophysics contexts.
+    Josh values work that:
+    - advances our understanding of artificial intelligence, machine learning, statistics, and/or astrophysics (with a preference within astrophysics for galaxies and stars)
+    - introduces novel methodological approaches
+    - demonstrates innovative scientific applications
+    - announces significant observational/experimental results
+    - has potential to influence future research across AI, ML, stats, and astro
 
   # Part 2: Scoring strategy - define what criteria to use for scoring
   scoring_strategy_prompt: |
     Evaluate papers using this three-component framework:
 
     **1. RELEVANCE (40% weight):**
-    - Direct connection to astrophysics, AI/ML/statistics, or computational methods
-    - Alignment with astrostatistics, interpretable AI, Bayesian methods, uncertainty quantification, or scientific applications
+    - Direct connection to artificial intelligence, machine learning, statistical inference, computational methods, or astrophysics (with extra weight for topics within astrophysics related to galaxies and stars)
+    - Alignment with interpretable AI, Bayesian methods, uncertainty quantification, or scientific applications
     - Cross-disciplinary potential bridging stats/astro/CS
 
     **2. CONTRIBUTION (30% weight):**
@@ -117,7 +119,7 @@ scoring:
     - Contribution score (1-10): ___
     - Impact score (1-10): ___
 
-    Calculate: Final Score = (Relevance × 0.4) + (Contribution × 0.3) + (Impact × 0.3)
+    Calculate: Final Score = (Relevance x 0.4) + (Contribution x 0.3) + (Impact x 0.3)
     Round to one decimal place.
 
     Be decisive about scores. Make sure to use the full scoring range effectively for each component.
@@ -134,10 +136,10 @@ pdf_processing:
   # Paper Selection Configuration
   selection:
     # Percentile-based selection: top X% of papers by score
-    percentile: 20
+    percentile: 10
 
     # Score threshold: papers must also meet minimum score requirement
-    score_threshold: 7.0
+    score_threshold: 5.0
 
     # Quantity constraints: ensure reasonable number of papers
     min_papers: 5
@@ -155,7 +157,7 @@ pdf_processing:
   download:
     # Rate limiting (arXiv recommends delays between requests)
     rate_limit_delay: 3.0 # Seconds between downloads
-    max_retries: 3 # Number of retry attempts for failed downloads
+    max_retries: 5 # Number of retry attempts for failed downloads
     timeout: 30 # Timeout in seconds for each download
 
     # Storage settings
@@ -203,36 +205,36 @@ summarization:
   input_file: null
 
   # Model configuration (must be defined in config/llm.yaml)
-  model_alias: "deepseek-r1-qwen3"
+  model_alias: "gpt-oss-20b"
 
   # Limit number of papers to summarize (null = summarize all papers)
   # Note: Papers are selected based on previous top scores
   max_papers: null
 
   # Retry configuration
-  retry_attempts: 2
+  retry_attempts: 5
 
   # Text processing preferences
   prefer_extracted_text: true # Prefer extracted text over direct PDF processing
 
   # Token limits and chunking configuration (only applies to extracted text)
-  max_single_chunk_tokens: 18000 # If extracted text fits in this, process as single chunk
-  max_chunk_tokens: 15000 # Maximum tokens per chunk when chunking is needed
+  max_single_chunk_tokens: 10000 # If extracted text fits in this, process as single chunk
+  max_chunk_tokens: 9000 # Maximum tokens per chunk when chunking is needed
   chunk_overlap_ratio: 0.2 # Overlap between chunks (0.0-0.5)
 
   # Three-part prompt configuration for summarization
   # Part 1: Research context - describe the target audience and focus areas
   research_context_prompt: |
-    You are summarizing research papers for Josh Speagle, an Assistant Professor of 
-    Astrostatistics at the University of Toronto whose research motto is "Statistical AI 
-    for Cosmic Discovery." His research focuses on four core areas:
+    You are evaluating research papers for Josh Speagle, an Assistant Professor at the University of Toronto
+    whose research motto is "Statistical AI for Cosmic Discovery."
+    His research focuses on four core areas:
 
     1. **Statistical Learning & AI**: Novel methods to discover patterns from large, messy datasets
     2. **Interpretability & Insight**: Rigorous understanding of methods to extract scientific insights
     3. **Inference & Computation**: Robust frameworks and algorithms to quantify what we can learn from data
-    4. **Discovery & Understanding**: Applying methods to astronomical surveys to understand galaxy formation and evolution
+    4. **Discovery & Understanding**: Applying methods to astronomical surveys and other domains, with particular interest in galaxies and stars
 
-    The summaries should be technical and comprehensive, suitable for an expert reader who wants to 
+    The summaries should be concise, technical, and comprehensive, suitable for an expert reader who wants to
     understand the key methodological contributions, experimental validation, and broader implications.
 
   # Part 2: Summarization strategy - define the structure and focus areas
@@ -279,7 +281,7 @@ rescoring:
   input_file: null
 
   # Model configuration (must be defined in config/llm.yaml)
-  model_alias: "deepseek-r1-qwen3"
+  model_alias: "gpt-oss-20b"
 
   # Limit number of papers to rescore (null = rescore all papers)
   max_papers: null
@@ -288,7 +290,7 @@ rescoring:
   batch_size: null
 
   # Retry configuration
-  retry_attempts: 2
+  retry_attempts: 5
 
   # Metadata fields to include when rescoring papers
   include_metadata:
@@ -319,13 +321,13 @@ synthesis:
   synthesis_storage_dir: "./data/reports" # Directory for reports
 
   # Model configuration (must be defined in config/llm.yaml)
-  model_alias: "deepseek-r1-qwen3"
+  model_alias: "gpt-oss-20b"
 
   # Paper selection (similar to pdf_processing.selection)
   selection:
     score_field: "rescored_llm_score" # Which score to use for selection
     percentile: 35
-    score_threshold: 7.5
+    score_threshold: 6.5
     min_papers: 3
     max_papers: 8
     n_random: 2
@@ -333,7 +335,7 @@ synthesis:
 
   # Report generation
   generation:
-    retry_attempts: 2
+    retry_attempts: 5
 
     # Metadata fields to include when synthesizing papers
     # Available: title, abstract, authors, categories, published, updated,
@@ -421,12 +423,12 @@ audio:
   audio_storage_dir: "./data/audio" # Directory for audio scripts and results
 
   # Model configuration (must be defined in config/llm.yaml)
-  model_alias: "deepseek-r1-qwen3"
+  model_alias: "gpt-oss-20b"
 
   # Audio script generation parameters
   target_duration_minutes: 11 # Target duration for audio narration (words = duration * 130)
   prefer_stage2: true # Prefer Stage 2 (final report) over Stage 1 (structured content) for conversion
-  retry_attempts: 2
+  retry_attempts: 5
 
   # Three-part prompt configuration for audio script generation
   # Part 1: Research context (null = inherit from synthesis or scoring configuration)

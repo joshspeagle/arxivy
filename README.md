@@ -45,8 +45,9 @@ python src/extract_papers.py  # extract text from PDFs (optional)
 python src/summarize_papers.py  # summarize papers (with LLM)
 python src/rescore_papers.py  # rescore papers using summaries (with LLM)
 python src/synthesize_papers.py  # subselect papers and synthesize report (with LLM)
-python src/create_audio_script.py  # convert report to audio script (with LLM)
 
+# Optional components
+python src/create_audio_script.py  # convert report to audio script (with LLM)
 python src/generate_audio.py  # convert script to audio file with TTS
 ```
 

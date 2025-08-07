@@ -314,14 +314,11 @@ class PaperSummarizer:
         # Remove thinking tokens first
         clean_text = self._remove_thinking_tokens(summary_text)
 
-        # Look for confidence statement at the end with corrected grammar
-        confidence_pattern = (
-            r"CONFIDENCE:\s*I have (high|medium|low) confidence.*?(?:\.|$)"
-        )
+        # Look for confidence statement at the end with corrected grammar, allowing for markdown formatting
+        confidence_pattern = r"CONFIDENCE[:\s]*\**\s*I have\s*\**\s*(high|medium|low)\s*\**\s*confidence.*?(?:\.|$)"
         confidence_match = re.search(
             confidence_pattern, clean_text, re.IGNORECASE | re.DOTALL
         )
-
         confidence_score = 0.8  # Default
         clean_summary = clean_text
 
