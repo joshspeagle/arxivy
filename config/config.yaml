@@ -143,7 +143,7 @@ pdf_processing:
 
     # Quantity constraints: ensure reasonable number of papers
     min_papers: 5
-    max_papers: 25
+    max_papers: 35
 
     # Random paper addition for exploration/serendipity
     # Add n_random papers from those not included in the original selection (0 = no random addition)
@@ -329,7 +329,7 @@ synthesis:
     percentile: 35
     score_threshold: 6.5
     min_papers: 3
-    max_papers: 8
+    max_papers: 13
     n_random: 2
     temperature: 0.5
 

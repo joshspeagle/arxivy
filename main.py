@@ -6,7 +6,7 @@ This script runs the complete ArXiv paper analysis workflow from start to finish
 It orchestrates all the individual workflow components in the correct order.
 
 Usage:
-    python main.py                    # Run complete workflow
+    python main.py                   # Run complete workflow
     python main.py --audio           # Include audio generation
     python main.py --test            # Test all components
     python main.py --help            # Show help
